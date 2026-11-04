@@ -1,37 +1,50 @@
-# WhatsUp Coursework — Working Folder (Ambroise)
+# WhatsUp Coursework — Personal Workshop (Ambroise)
 
-My personal workshop for the WhatsUp coursework. Application code and shared team work
-live in the **group repo** (`vscode\WhatsUp_Coursework` on GitHub) — never duplicated
-here. This folder holds documents, research, drafts and my individual work.
-
-Method: adapted from [killer-saas](https://github.com/MikeCodeur/killer-saas/blob/main/DOC.md)
-— simplified. **The files are the state.**
+Personal workshop for the WhatsUp coursework. Application code and shared team work live in
+the **group repo** (https://github.com/jackoturner/WhatsUp_Coursework). This repo carries the
+adopted scaffold (binaries + code + installation at the root, per the 2026-11-04 decision),
+the OWASP security framework, and the personal/project documentation.
 
 ## Structure
 
-| Folder | Purpose |
+| Item | Purpose |
 |---|---|
-| `00. Admin/` | Brief copies, meeting notes, group decisions — and `decisions/` (numbered ADRs) |
-| `01. Product/` | `Way_of_Working.md` (the framing note) + `PRD.md` (app blueprint) |
-| `02. Architecture/` | `architecture.md` — stack, components, data model, deployment, attack surface preview |
-| `03. Design-system/` | `design-system.md` — deliberately one page: tokens, 4 components, 5 screens |
-| `04. Stories/` | `stories.md` = the backlog (B1–B6 build, A1–A6 assessment). One folder per story: `story.md` + `evidence/`. `_Template/` is the skeleton to copy |
-| `05. Deliverables/` | The four graded artefacts, assembled as they mature |
+| `src/` · `infrastructure/` · `scripts/` | Adopted WhatsUpTeam scaffold — backend (FastAPI), frontend, MySQL infrastructure, env prep |
+| `compose.yaml` · `package.json` · `.env.example` | Docker Compose stack + npm wrappers; `.env.example` is the template for secrets |
+| `.agents/` · `CLAUDE.md` · `AGENTS.md` | Team AI rules & skills (mirrored in `.claude/skills/`) |
+| `AI_USE.md` | AI use log — one row per session |
+| `Project/00. Brief/` | `Coursework_Brief.pdf` |
+| `Project/01. Way_of_working/` | `Way_of_Working.md` (method + story list) · `Weekly_W0x.md` |
+| `Project/02. Design/` | `blueprint.md` — merged design (overview, scoping, architecture, design system) |
+| `Project/03. Frameworks/` | `owasp-security-baseline.md` · `OWASP_Testing_Guide_v4.pdf` |
+| `Project/04. Stories/` | `security-requirements.md` (ASVS oracle) · `Ethical-Hacking-scenario.md` |
+| `Project/05. Deliverables/` | Four graded artefacts: Scoping (15) · Threat Model (35) · Security Assessment Report (35) · Reflection (15) |
 
-## Story lifecycle
+70% of the marks sit on security analysis — the framework and stories feed artefacts 2 and 3.
 
-Copy `_Template/`, rename to the story ID, and work through the sections of `story.md`:
-`Research → Design → Plan → Execute → Review → Ship`.
+## Quick start
 
-Two gates, straight from the method:
+```bash
+cp .env.example .env   # then set the MySQL credentials
+npm run dev            # prepares env, builds and starts the compose stack
+```
 
-1. **No execution without a validated plan** (`validated: yes` in the Plan section)
-2. **No ship without review** (`Ship allowed: yes` from a second person)
+| Command | Does |
+|---|---|
+| `npm run dev` | `docker compose up --build` (runs `scripts/prepare-env.mjs` first) |
+| `npm run stop` | `docker compose down` |
+| `npm run logs` | Follow service logs |
 
-Branch per story (`feature/S03-auth-testing`), one PR, squash-merge.
+Frontend on `127.0.0.1:3000` (`FRONTEND_PORT` overridable); backend health at `/api/health`.
+
+## Method
+
+`Project/01. Way_of_working/Way_of_Working.md` holds the method and the story list.
+Two gates, unchanged: **no execution without a validated plan**, and **no ship without review**
+(second person). Stories are worked one at a time; evidence lands in the artefacts as it matures.
 
 ## Related
 
 - Group repo: https://github.com/jackoturner/WhatsUp_Coursework
 - AI use log: [AI_USE.md](AI_USE.md)
-- Coursework brief: `..\Coursework_Brief.pdf`
+- Brief: `Project/00. Brief/Coursework_Brief.pdf`
