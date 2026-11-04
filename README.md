@@ -15,9 +15,9 @@ the OWASP security framework, and the personal/project documentation.
 | `AI_USE.md` | AI use log — one row per session |
 | `Project/00. Brief/` | `Coursework_Brief.pdf` |
 | `Project/01. Way_of_working/` | `Way_of_Working.md` (method + story list) · `Weekly_W0x.md` |
-| `Project/02. Design/` | `blueprint.md` — merged design (overview, scoping, architecture, design system) |
+| `Projec`blueprint.md` (design, overview, scoping, architecture, design system)e, design system) |
 | `Project/03. Frameworks/` | `owasp-security-baseline.md` · `OWASP_Testing_Guide_v4.pdf` |
-| `Project/04. Stories/` | `security-requirements.md` (ASVS oracle) · `Ethical-Hacking-scenario.md` |
+| `Proje`security-requirements.md` (ASVS oracle) · `Ethical-Hacking-scenario.md`acking-scenario.md` |
 | `Project/05. Deliverables/` | Four graded artefacts: Scoping (15) · Threat Model (35) · Security Assessment Report (35) · Reflection (15) |
 
 70% of the marks sit on security analysis — the framework and stories feed artefacts 2 and 3.
