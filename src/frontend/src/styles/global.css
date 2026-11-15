@@ -2,9 +2,11 @@
 :root {
   --bg: #f7f7f8;
   --surface: #ffffff;
-  --primary: #1f6feb;
-  --primary-dark: #1858c4;
-  --brand: #e36e04;
+  /* Roehampton green #00a06e (sampled from the university logo) for the identity;
+     a darker shade of the same green wherever white text sits on it (WCAG AA 4.5:1). */
+  --primary: #007a54;
+  --primary-dark: #005e41;
+  --brand: #00a06e;
   --text: #1f2328;
   --muted: #656d76;
   --danger: #cf222e;

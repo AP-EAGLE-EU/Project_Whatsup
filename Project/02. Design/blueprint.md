@@ -27,7 +27,7 @@
 | HTTP security headers & TLS | nginx deployment |
 | OWASP Top 10 | all the above + avatar/attachment upload |
 
-**Vision (team overview):** a corporate communication platform for organisations where confidential information is exchanged daily — financial firms, legal practices, cybersecurity consultancies. A trusted space for internal communication, with a retro early-internet-chat-room identity: brand colour `#E36E04`, Pikachu as security mascot. The aim is to explore how organisations protect their communications against unauthorised access, insider threats and data breaches.
+**Vision (team overview):** a corporate communication platform for organisations where confidential information is exchanged daily — financial firms, legal practices, cybersecurity consultancies. A trusted space for internal communication, with a retro early-internet-chat-room identity: brand colour Roehampton green `#00A06E` (was `#E36E04` until 2026-11-15), Pikachu as security mascot. The aim is to explore how organisations protect their communications against unauthorised access, insider threats and data breaches.
 
 **Three roles:**
 
@@ -202,7 +202,7 @@ a private channel), WebSockets (replaces the 3-second polling), attachment previ
 
 **Tokens:**
 
-- **Colours:** `--bg #f7f7f8` · `--surface #ffffff` · `--primary #1f6feb` · **brand accent `#E36E04` (team override)** · `--text #1f2328` · `--muted #656d76` · `--danger #cf222e`
+- **Colours:** `--bg #f7f7f8` · `--surface #ffffff` · `--primary #007a54` (dark Roehampton green: buttons, links, own messages — 5.4:1 with white text) · **brand `#00A06E` (Roehampton green, sampled from the university logo, 2026-11-15 — replaces the team's orange `#E36E04` and the blue `#1f6feb`)** · `--text #1f2328` · `--muted #656d76` · `--danger #cf222e`
 - **Type:** system font stack, 16px base, line-height 1.5
 - **Spacing:** 4 / 8 / 16 / 32 · radius 8px · border 1px `#d0d7de`
 

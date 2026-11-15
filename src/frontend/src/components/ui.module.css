@@ -76,7 +76,7 @@
   color: var(--muted);
   background: var(--bg);
 }
-.badgeBrand { color: #fff; background: var(--brand); border-color: var(--brand); }
+.badgeBrand { color: #fff; background: var(--primary); border-color: var(--primary); }
 .badgeDanger { color: #fff; background: var(--danger); border-color: var(--danger); }
 
 /* Avatar */
@@ -86,7 +86,7 @@
   flex: none;
   border-radius: 50%;
   overflow: hidden;
-  background: var(--brand);
+  background: var(--primary);
   color: #fff;
   font-weight: 700;
 }
