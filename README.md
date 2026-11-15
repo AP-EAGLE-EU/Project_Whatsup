@@ -37,6 +37,10 @@ npm run dev            # prepares env, builds and starts the compose stack
 
 Frontend on `127.0.0.1:3000` (`FRONTEND_PORT` overridable); backend health at `/api/health`.
 
+**Tests and mock demo** (story B7): `bash test/run-tests.sh` runs the smoke + acceptance suites in
+Docker and leaves the mock front (every screen, fictional demo data) on `127.0.0.1:3001`.
+See [test/README.md](test/README.md), including the Windows 11 + Docker Desktop + WSL set-up.
+
 ## Method
 
 `Project/01. Way_of_working/Way_of_Working.md` holds the method and the story list.

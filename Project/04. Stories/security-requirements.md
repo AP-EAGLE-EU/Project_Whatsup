@@ -1,7 +1,7 @@
 # WhatsUp — Security Requirements (OWASP ASVS baseline)
 
 - **Status:** Proposal — oracle for the A stories; adopted with the OWASP baseline (`../03. Frameworks/owasp-security-baseline.md`)
-- **Date:** 2026-11-04 · **Owner:** Ambroise (cyber referent) · Drafted with Claude Code (see `AI_USE.md`)
+- **Date:** 2026-11-04 · **Updated:** 2026-11-15 (SR-FE group, CAF 4.0 column) · **Owner:** Ambroise (cyber referent) · Drafted with Claude Code (see `AI_USE.md`)
 - **Applies to:** the adopted team stack (React + FastAPI + MySQL, modular monolith —
   decision logged in `../01. Way_of_working/Way_of_Working.md`). Extension point: story
   A1 adds SRs for WebSockets, organisation isolation and audit integrity.
@@ -17,8 +17,10 @@ not buggy*: these SRs state the **target** — gaps found later are marks, not e
 
 **Baseline standards:** OWASP ASVS v4.0.3 chapters (requirement source) · OWASP Top 10
 2021 (risk framing) · OWASP WSTG v4.2 (verification — PDF in `../03. Frameworks/`) ·
-CVSS 3.1 (severity of failures). ASVS references are given at chapter level; each story
-pair pins the exact clauses during its Research step.
+CVSS 3.1 (severity of failures) · **NCSC CAF 4.0** (organisational assurance view, added
+2026-11-15 — `../03. Frameworks/caf-4.0-baseline.md`). ASVS references are given at chapter
+level; each story pair pins the exact clauses during its Research step. The CAF column of the
+traceability summary says which CAF contributing outcome each SR group supports.
 
 ## SR-AUTH — Authentication (ASVS V2 · A07:2021 · STRIDE Spoofing)
 
@@ -107,15 +109,31 @@ pair pins the exact clauses during its Research step.
 | SR-DEP-01 | Dependencies pinned (`requirements.txt`, `package-lock.json` — already true in the scaffold) | A6 · WSTG-CONF |
 | SR-DEP-02 | An automated vulnerability check (`pip-audit`, `npm audit`) is run and its output kept as evidence | A6 · WSTG-CONF |
 
+## SR-FE — Front-end (ASVS V3/V5/V14 · A03/A05/A07 · STRIDE Tampering/Information disclosure)
+
+Added 2026-11-15 with story B7 (`B7-front-end-screens.md`). The browser is untrusted ground:
+these SRs only say what the React front must **not** do. Every control the front shows
+(hidden link, route guard, file pre-check) has a server-side twin in the groups above.
+
+| ID | Requirement | Verified by |
+|----|-------------|-------------|
+| SR-FE-01 | No session token or credential is kept in web storage or in a JavaScript-readable cookie; the session is the back-office's `HttpOnly` cookie. Only the CSRF token cookie is readable, by design | A2 · WSTG-SESS |
+| SR-FE-02 | The front runs under the strict nginx CSP (`default-src 'self'`): no inline script or style, no `eval`, no third-party script or CDN | A5 · WSTG-CONF |
+| SR-FE-03 | User content is rendered as text only (no `dangerouslySetInnerHTML`/`innerHTML`); links and images coming from the API are accepted only as same-origin relative paths | A4 · WSTG-INPV |
+| SR-FE-04 | Client-side checks (route guards, hidden admin links, upload pre-checks, form limits) are usability only and documented as such; they are never the control | A3 · WSTG-ATHZ |
+| SR-FE-05 | State-changing requests carry the CSRF header (double-submit) and same-origin credentials; requests time out; users only see safe messages, never raw server bodies | A2 · WSTG-SESS/ERRH |
+| SR-FE-06 | The mock build (fictional demo accounts) is never the system under test; a live build contains no mock code (checked by grepping the built bundle) | A6 · WSTG-CONF |
+
 ## Traceability summary
 
-| SR group | STRIDE | Top 10 2021 | Attack scenarios | Stories | Artefact |
-|----------|--------|-------------|------------------|---------|----------|
-| AUTH, SESS | S, (T) | A07 | EH-03…EH-06 | A2 | 2 & 3 |
-| AC | E, I | A01 | EH-07, EH-08, EH-14 | A3 | 2 & 3 |
-| VAL, FILE | T | A03, A04 | EH-09…EH-12 | A4 | 3 |
-| COMM, CONF, ERR | I | A02, A05 | EH-02, EH-13, EH-15 | A5 | 3 |
-| LOG, DEP | R, T | A09, A06 | EH-15, EH-16 | A6 | 2 & 3 |
+| SR group | STRIDE | Top 10 2021 | Attack scenarios | Stories | Artefact | CAF 4.0 |
+|----------|--------|-------------|------------------|---------|----------|---------|
+| AUTH, SESS | S, (T) | A07 | EH-03…EH-06 | A2 | 2 & 3 | B2.a |
+| AC | E, I | A01 | EH-07, EH-08, EH-14 | A3 | 2 & 3 | B2.a, B2.c, B4.a |
+| VAL, FILE | T | A03, A04 | EH-09…EH-12 | A4 | 3 | B4.a, B3.a, B3.c |
+| COMM, CONF, ERR | I | A02, A05 | EH-02, EH-13, EH-15 | A5 | 3 | B3.b, B4.a, B4.b |
+| LOG, DEP | R, T | A09, A06 | EH-15, EH-16 | A6 | 2 & 3 | C1.a, C1.b, A4.a, A4.b, B4.d |
+| FE | T, I | A03, A05, A07 | EH-06, EH-09, EH-13 | A2–A5 | 3 | A4.b, B4.a |
 
 ## References (IEEE)
 
@@ -126,3 +144,5 @@ https://owasp.org/www-project-web-security-testing-guide/ (PDF copy: `../03. Fra
 [3] OWASP Foundation, *OWASP Top 10:2021*, 2021. [Online]. Available: https://owasp.org/Top10/
 [4] FIRST, *Common Vulnerability Scoring System v3.1*, 2019. [Online]. Available:
 https://www.first.org/cvss/v3.1/specification-document
+[5] National Cyber Security Centre, *Cyber Assessment Framework 4.0*, NCSC, 2025. [Online].
+Available: https://www.ncsc.gov.uk/collection/cyber-assessment-framework (PDF copy: `../03. Frameworks/`)

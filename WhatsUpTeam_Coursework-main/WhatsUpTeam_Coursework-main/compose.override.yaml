@@ -1,0 +1,19 @@
+services:
+  backend:
+    build:
+      target: development
+    volumes:
+      - ./src/backend/app:/app/app:ro
+
+  frontend:
+    build:
+      target: development
+    environment:
+      API_PROXY_TARGET: http://backend:8000
+    volumes:
+      - ./src/frontend/src:/app/src:ro
+      - ./src/frontend/index.html:/app/index.html:ro
+      - ./src/frontend/vite.config.ts:/app/vite.config.ts:ro
+      - ./src/frontend/tsconfig.json:/app/tsconfig.json:ro
+    healthcheck:
+      test: [CMD, wget, -q, --spider, http://127.0.0.1:8080/]

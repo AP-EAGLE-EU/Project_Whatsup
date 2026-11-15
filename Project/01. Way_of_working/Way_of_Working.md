@@ -39,9 +39,11 @@ Status lifecycle: `to-plan → in-progress → in-review → shipped`. **Assessm
 
 | ID | Story                                                                                                 | Complexity | Feeds      | Owner | Depends | Status   |
 |----|-------------------------------------------------------------------------------------------------------|------------|------------|-------|---------|----------|
-| B1 | Skeleton & authentication — auth scaffold, User model, register/login/logout, session cookie          | 3          | —          | TBD   | —       | to-plan  |
-| B2 | Channels & messaging — list/create channels, post/read messages, chat UI                              | 3          | —          | TBD   | B1      | to-plan  |
-| B3 | Profiles & avatar upload                                                                              | 2          | —          | TBD   | B1      | to-plan  |
+| B0 | Back-office scaffold (FastAPI MVC + MySQL + Docker) — retro-documented in `04. Stories/B0-back-office-scaffold-retro.md` | 2 | Artefact 1 | Productivity-Square (merged by Evan-Balson) | — | shipped (PR #27, 2026-11-10) |
+| B1 | Skeleton & authentication — auth API, User/Session models, register/login/logout, session cookie + CSRF (API contract v0.1) | 3 | — | TBD | B0 | to-plan |
+| B2 | Channels & messaging — channels, messages, attachments, reports API (UI done in B7)                   | 3          | —          | TBD   | B1      | to-plan  |
+| B3 | Profiles, avatar upload & admin API (users/roles, audit events) (UI done in B7)                       | 2          | —          | TBD   | B1      | to-plan  |
+| B7 | Front-end screens + back-office integration, contract-first with a mock build, smoke & acceptance tests — `04. Stories/B7-front-end-screens.md` | 3 | Artefacts 1 & 3 | Ambroise | B0 | in-review |
 | B4 | Deployment — Docker, nginx, self-signed TLS, seed script, run instructions                            | 3          | Artefact 1 | TBD   | —       | to-plan  |
 | B5 | Design system & docs infrastructure — tokens/components, report skeletons, IEEE reference list        | 2          | —          | TBD   | —       | to-plan  |
 | B6 | PRD freeze, QA acceptance checklist, initial recon notes                                              | 2          | —          | TBD   | —       | to-plan  |
@@ -68,6 +70,7 @@ Evidence is filed in the story's `evidence/` folder the same day, never reconstr
   compose.yaml          # Docker Compose stack
   package.json          # dependencies + run scripts
   scripts/              # install / seed / run helpers
+  test/                 # smoke + acceptance suites (pytest + Playwright, run in Docker) — added 2026-11-15
   .env.example          # environment template — no secrets committed
   .agents/              # rules & skills (+ .claude/skills mirror)
   CLAUDE.md AGENTS.md   # agent instructions
@@ -76,8 +79,8 @@ Project/                # coursework documentation only
   00. Brief/            # Coursework_Brief.pdf
   01. Way_of_working/   # this file + weekly reports (Weekly_W01.md, Weekly_W02.md, …)
   02. Design/           # blueprint.md — merged: overview, scoping, architecture, design system · archive/ (retired sources)
-  03. Frameworks/       # owasp-security-baseline.md + OWASP_Testing_Guide_v4.pdf
-  04. Stories/          # security-requirements.md + Ethical-Hacking-scenario.md
+  03. Frameworks/       # owasp-security-baseline.md + OWASP_Testing_Guide_v4.pdf + caf-4.0-baseline.md + NCSC CAF 4.0 PDF
+  04. Stories/          # security-requirements.md + Ethical-Hacking-scenario.md + story files (B0 retro, B7 front)
   05. Deliverables/     # Scoping-document.md · Threat-model.md · Security-assessment-report.md · Reflection.md
 ```
 
@@ -113,6 +116,10 @@ Replaces the old ADR folder. Dated bullets:
 - **2026-11-04** — Team dev model adopted (React/FastAPI/MySQL) — challenged via the OWASP requirements (`04. Stories/security-requirements.md`).
 - **2026-11-04** — OWASP ASVS/WSTG baseline adopted (see `03. Frameworks/`).
 - **2026-11-04** — Simplified folder structure (§4 above).
+- **2026-11-10** — Back-office scaffold merged in the group repo (PR #27, commit `0e5302d`); retro-documented as story B0 on 2026-11-15.
+- **2026-11-15** — Front built **contract-first** (story B7): API contract v0.1 in the Blueprint §4, a mock build for demos and acceptance tests, no change to the group's back-office code. B1–B3 now cover the API only.
+- **2026-11-15** — NCSC **CAF 4.0** added as the organisational assurance lens (`03. Frameworks/caf-4.0-baseline.md`); new SR-FE group for the front — *proposal, group agreement pending*.
+- **2026-11-15** — Smoke + acceptance tests live in `/test` and run in Docker (Playwright image), because the team removed browser tooling from the front package (commit `53b3f07`).
 
 ## 9. Method source
 

@@ -1,0 +1,41 @@
+# Test overlay for the WhatsUp stack — never used on its own. From the repository root:
+#   docker compose -f compose.yaml -f test/compose.test.yaml --profile test run --rm tests
+# Paths are relative to the first file (the repository root).
+services:
+  # The same front-end, built in mock mode: every screen works without B1–B3.
+  # Also handy for demos: http://127.0.0.1:3001
+  frontend-mock:
+    profiles: [test]
+    build:
+      context: ./src/frontend
+      target: runtime
+      args:
+        VITE_API_MODE: mock
+    ports:
+      - "127.0.0.1:${MOCK_FRONTEND_PORT:-3001}:8080"
+    networks:
+      - app
+    healthcheck:
+      test: [CMD, wget, -q, --spider, http://127.0.0.1:8080/healthz]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  # Test runner: pytest + Playwright (Chromium) on the internal app network.
+  tests:
+    profiles: [test]
+    build:
+      context: ./test
+    environment:
+      LIVE_BASE_URL: http://frontend:8080
+      MOCK_BASE_URL: http://frontend-mock:8080
+    depends_on:
+      frontend:
+        condition: service_healthy
+      frontend-mock:
+        condition: service_healthy
+    networks:
+      - app
+    volumes:
+      - ./test/reports:/tests/reports
