@@ -1,6 +1,6 @@
 // Demo data for mock mode only (VITE_API_MODE=mock). Fictional people and organisations;
 // the shared demo password is not a secret and never exists in the live back-office.
-import type { Organisation, Role } from '../../types/api';
+import type { ConversationType, Organisation, Role } from '../../types/api';
 
 export const MOCK_DEMO_PASSWORD = 'demo-password-2026';
 
@@ -16,12 +16,13 @@ export interface MockUser {
   locked_until: number;
 }
 
-export interface MockChannel {
+export interface MockConversation {
   id: number;
-  name: string;
+  type: ConversationType;
+  name: string; // empty for direct conversations (named after the other participant)
   organisation_id: number;
-  is_private: boolean;
   member_ids: number[];
+  manager_ids: number[];
 }
 
 export interface MockAttachment {
@@ -35,7 +36,7 @@ export interface MockAttachment {
 
 export interface MockMessage {
   id: number;
-  channel_id: number;
+  conversation_id: number;
   author_id: number;
   body: string;
   created_at: string;
@@ -52,47 +53,47 @@ export interface MockAuditEvent {
 }
 
 export interface MockReport {
+  id: number;
   message_id: number;
   reporter_id: number;
   reason: string;
+  created_at: string;
 }
 
-export interface MockState {
+export interface MockData {
   organisations: Organisation[];
   users: MockUser[];
-  channels: MockChannel[];
+  conversations: MockConversation[];
   messages: MockMessage[];
   audit: MockAuditEvent[];
   reports: MockReport[];
-  session_user_id: number | null;
   next_id: number;
 }
 
-function user(
-  id: number,
-  username: string,
-  displayName: string,
-  role: Role,
-  organisationId: number,
-): MockUser {
+function user(id: number, username: string, displayName: string, role: Role, orgId: number): MockUser {
   return {
     id,
     username,
     password: MOCK_DEMO_PASSWORD,
     display_name: displayName,
     role,
-    organisation_id: organisationId,
+    organisation_id: orgId,
     avatar_url: null,
     failed_logins: 0,
     locked_until: 0,
   };
 }
 
-function minutesAgo(minutes: number): string {
-  return new Date(Date.now() - minutes * 60_000).toISOString();
+function group(id: number, name: string, orgId: number, members: number[], managers: number[]): MockConversation {
+  return { id, type: 'group', name, organisation_id: orgId, member_ids: members, manager_ids: managers };
 }
 
-export function createSeed(): MockState {
+function message(id: number, conversationId: number, authorId: number, body: string, minutesAgo: number): MockMessage {
+  const createdAt = new Date(Date.now() - minutesAgo * 60_000).toISOString();
+  return { id, conversation_id: conversationId, author_id: authorId, body, created_at: createdAt, attachment: null };
+}
+
+export function createSeed(): MockData {
   return {
     organisations: [
       { id: 1, name: 'Acme Legal' },
@@ -105,30 +106,25 @@ export function createSeed(): MockState {
       user(4, 'itadmin', 'IT Admin', 'org_admin', 1),
       user(5, 'mallory', 'Mallory Reed', 'employee', 2),
     ],
-    channels: [
-      { id: 1, name: 'general', organisation_id: 1, is_private: false, member_ids: [1, 2, 3, 4] },
-      { id: 2, name: 'legal-team', organisation_id: 1, is_private: true, member_ids: [2, 3] },
-      { id: 3, name: 'random', organisation_id: 1, is_private: false, member_ids: [2] },
-      { id: 4, name: 'globex-general', organisation_id: 2, is_private: false, member_ids: [5] },
+    conversations: [
+      group(1, 'general', 1, [1, 2, 3, 4], [3]),
+      group(2, 'legal-team', 1, [2, 3], [3]),
+      { id: 3, type: 'direct', name: '', organisation_id: 1, member_ids: [1, 2], manager_ids: [] },
+      group(4, 'it-ops', 1, [3, 4], [4]),
+      group(5, 'globex-general', 2, [5], []),
     ],
     messages: [
-      { id: 1, channel_id: 1, author_id: 2, body: 'Welcome to #general!', created_at: minutesAgo(30), attachment: null },
-      { id: 2, channel_id: 1, author_id: 1, body: 'Hi Bob, thanks.', created_at: minutesAgo(25), attachment: null },
-      { id: 3, channel_id: 2, author_id: 3, body: 'Contract review moved to Friday.', created_at: minutesAgo(20), attachment: null },
-      { id: 4, channel_id: 4, author_id: 5, body: 'Globex internal only.', created_at: minutesAgo(15), attachment: null },
+      message(1, 1, 2, 'Welcome to #general!', 30),
+      message(2, 1, 1, 'Hi Bob, thanks.', 25),
+      message(3, 2, 3, 'Contract review moved to Friday.', 20),
+      message(4, 3, 2, 'Can you check the NDA draft?', 18),
+      message(5, 4, 4, 'Patch window tonight at 22:00.', 16),
+      message(6, 5, 5, 'Globex internal only.', 15),
     ],
     audit: [
-      {
-        id: 1,
-        organisation_id: 1,
-        event_type: 'seed',
-        actor_username: null,
-        timestamp: minutesAgo(60),
-        details: 'Mock data loaded',
-      },
+      { id: 1, organisation_id: 1, event_type: 'seed', actor_username: null, timestamp: new Date().toISOString(), details: 'Mock data loaded' },
     ],
     reports: [],
-    session_user_id: null,
     next_id: 100,
   };
 }

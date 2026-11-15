@@ -17,7 +17,8 @@ export default defineConfig(({ mode }) => {
         interval: 500,
       },
       proxy: {
-        '/api': env.API_PROXY_TARGET ?? 'http://127.0.0.1:3000',
+        // ws: true also forwards the /api/ws WebSocket upgrade (FE-04).
+        '/api': { target: env.API_PROXY_TARGET ?? 'http://127.0.0.1:3000', ws: true },
       },
     },
   };

@@ -27,7 +27,7 @@ def test_index_page_is_served(http, live_url):
 
 
 def test_deep_links_fall_back_to_the_single_page_app(http, live_url):
-    response = http.get(f"{live_url}/channels/1")
+    response = http.get(f"{live_url}/conversations/1")
 
     assert response.status_code == 200
     assert '<div id="root"></div>' in response.text

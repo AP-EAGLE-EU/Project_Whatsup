@@ -6,8 +6,8 @@ export type Route =
   | { name: 'home' }
   | { name: 'login' }
   | { name: 'register' }
-  | { name: 'channels' }
-  | { name: 'chat'; channelId: number }
+  | { name: 'conversations' }
+  | { name: 'chat'; conversationId: number }
   | { name: 'profile' }
   | { name: 'admin' }
   | { name: 'status' }
@@ -17,7 +17,7 @@ const STATIC_ROUTES: Record<string, Route> = {
   '/': { name: 'home' },
   '/login': { name: 'login' },
   '/register': { name: 'register' },
-  '/channels': { name: 'channels' },
+  '/conversations': { name: 'conversations' },
   '/profile': { name: 'profile' },
   '/admin': { name: 'admin' },
   '/status': { name: 'status' },
@@ -28,9 +28,9 @@ export function parsePath(pathname: string): Route {
   if (staticRoute !== undefined) {
     return staticRoute;
   }
-  const chat = /^\/channels\/(\d{1,9})$/.exec(pathname);
+  const chat = /^\/conversations\/(\d{1,9})$/.exec(pathname);
   if (chat !== null) {
-    return { name: 'chat', channelId: Number(chat[1]) };
+    return { name: 'chat', conversationId: Number(chat[1]) };
   }
   return { name: 'not_found' };
 }

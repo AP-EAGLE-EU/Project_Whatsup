@@ -3,6 +3,9 @@
 LIVE_BASE_URL: the real stack (front nginx -> FastAPI -> MySQL).
 MOCK_BASE_URL: the same front built with VITE_API_MODE=mock (no back-office needed).
 Defaults target the ports published on the host, so the suites also run outside Docker.
+
+Acceptance tests are named after the group backlog: test_fe02_ac4_... = issue FE-02,
+4th acceptance-criteria checkbox (GitHub jackoturner/WhatsUpTeam_Coursework).
 """
 
 import os
@@ -17,6 +20,7 @@ MOCK_BASE_URL = os.environ.get("MOCK_BASE_URL", "http://127.0.0.1:3001").rstrip(
 
 # Fictional demo accounts that exist only in the mock build (src/frontend/src/services/mock).
 DEMO_PASSWORD = "demo-password-2026"
+MOCK_SESSION_KEY = "whatsup-mock-session-v2"
 
 
 @pytest.fixture(scope="session")
@@ -45,7 +49,8 @@ def browser():
 
 @pytest.fixture
 def page(browser: Browser):
-    # A fresh context per test = fresh cookies and sessionStorage = fresh mock data.
+    # A fresh context per test = fresh cookies and storage = fresh mock data.
+    # Pages opened in the same context share the mock data (two users, two tabs).
     context = browser.new_context()
     new_page = context.new_page()
     new_page.set_default_timeout(10_000)
@@ -58,4 +63,19 @@ def sign_in(page: Page, base_url: str, username: str, password: str = DEMO_PASSW
     page.get_by_label("Username").fill(username)
     page.get_by_label("Password", exact=True).fill(password)
     page.get_by_role("button", name="Sign in").click()
-    expect(page).to_have_url(re.compile(r"/channels$"))
+    expect(page).to_have_url(re.compile(r"/conversations$"))
+
+
+def sign_out(page: Page) -> None:
+    page.get_by_role("button", name="Sign out").click()
+    expect(page).to_have_url(re.compile(r"/login$"))  # wait for the server-side logout
+
+
+def open_conversation(page: Page, title: str) -> None:
+    page.get_by_role("link", name=title, exact=True).click()
+    expect(page.get_by_role("heading", name=title, exact=True)).to_be_visible()
+
+
+def send_message(page: Page, text: str) -> None:
+    page.get_by_label("Message", exact=True).fill(text)
+    page.get_by_role("button", name="Send", exact=True).click()

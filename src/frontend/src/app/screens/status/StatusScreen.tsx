@@ -3,6 +3,7 @@ import Badge from '../../../components/Badge';
 import Card from '../../../components/Card';
 import { useAuth } from '../../../features/auth/AuthContext';
 import GreetingPanel from '../../../features/greetings/GreetingPanel';
+import { useRealtime } from '../../../features/realtime/RealtimeContext';
 import { useApi } from '../../../hooks/useApi';
 import { errorMessage } from '../../../services/apiError';
 import styles from '../screens.module.css';
@@ -11,6 +12,7 @@ import styles from '../screens.module.css';
 export default function StatusScreen() {
   const api = useApi();
   const { state } = useAuth();
+  const { status: liveStatus } = useRealtime();
   const [health, setHealth] = useState<string>('Checking…');
 
   useEffect(() => {
@@ -48,6 +50,10 @@ export default function StatusScreen() {
           <dd data-testid="health">{health}</dd>
           <dt>Authentication endpoints (/api/auth)</dt>
           <dd data-testid="auth-availability">{authLabel}</dd>
+          <dt>Live updates (WebSocket /api/ws)</dt>
+          <dd data-testid="realtime-status">
+            {state.status === 'authenticated' ? liveStatus : 'Sign in to connect'}
+          </dd>
         </dl>
       </Card>
       <Card title="Database greeting (/api/greetings/hello)">

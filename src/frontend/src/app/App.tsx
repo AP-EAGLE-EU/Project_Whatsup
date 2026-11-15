@@ -1,13 +1,14 @@
 import { useEffect } from 'react';
 import { AuthProvider, useAuth } from '../features/auth/AuthContext';
+import { RealtimeProvider } from '../features/realtime/RealtimeContext';
 import { ApiContext } from '../hooks/useApi';
 import { navigate, useLocation } from '../hooks/useRoute';
 import type { Route } from '../hooks/useRoute';
 import type { WhatsUpApi } from '../types/api';
 import AppShell from './AppShell';
 import AdminScreen from './screens/admin/AdminScreen';
-import ChannelsScreen from './screens/channels/ChannelsScreen';
 import ChatScreen from './screens/chat/ChatScreen';
+import ConversationsScreen from './screens/conversations/ConversationsScreen';
 import LoginScreen from './screens/login/LoginScreen';
 import NotFoundScreen from './screens/notfound/NotFoundScreen';
 import ProfileScreen from './screens/profile/ProfileScreen';
@@ -30,10 +31,10 @@ function Screen({ route, search }: { route: Route; search: URLSearchParams }) {
       return <LoginScreen search={search} />;
     case 'register':
       return <RegisterScreen />;
-    case 'channels':
-      return <ChannelsScreen />;
+    case 'conversations':
+      return <ConversationsScreen />;
     case 'chat':
-      return <ChatScreen key={route.channelId} channelId={route.channelId} />;
+      return <ChatScreen key={route.conversationId} conversationId={route.conversationId} />;
     case 'profile':
       return <ProfileScreen />;
     case 'admin':
@@ -57,7 +58,7 @@ function Router() {
 
   const signedIn = state.status === 'authenticated';
   if (signedIn && GUEST_ONLY_ROUTES.has(route.name)) {
-    return <Redirect to="/channels" />;
+    return <Redirect to="/conversations" />;
   }
   if (!signedIn && !PUBLIC_ROUTES.has(route.name)) {
     return <Redirect to="/login" />;
@@ -74,7 +75,9 @@ export default function App({ api }: { api: WhatsUpApi }) {
   return (
     <ApiContext.Provider value={api}>
       <AuthProvider>
-        <Router />
+        <RealtimeProvider>
+          <Router />
+        </RealtimeProvider>
       </AuthProvider>
     </ApiContext.Provider>
   );

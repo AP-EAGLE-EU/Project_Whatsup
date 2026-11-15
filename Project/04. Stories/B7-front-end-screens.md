@@ -2,126 +2,165 @@
 
 | Field | Value |
 |---|---|
-| **ID** | B7 (build phase) |
-| **Owner** | Ambroise PETIN (front) · **Reviewer:** TBD (GATE 2 needs a second person) |
+| **ID** | B7 (build phase) = group backlog **FE-02 #7 · FE-03 #10 · FE-04 #12 · FE-05 #14 · FE-06 #16 · FE-07 #18** (+ proposal for **SH-01 #4**) |
+| **Backlog** | GitHub `jackoturner/WhatsUpTeam_Coursework` — issues opened by Evan-Balson, Sprint 2 (31 Oct–14 Nov 2026), label `frontend` |
+| **Owner** | Ambroise PETIN (`AP-EAGLE-EU`, collaborator — can self-assign) · **Reviewer:** TBD (GATE 2 / issue DoD: one teammate) |
 | **Complexity** | 3 |
-| **Depends on** | B0 (back-office scaffold, shipped) · feeds B1–B3 (API contract v0.1) |
-| **Feeds** | Artefact 1 (screens, deployment evidence) · Artefact 3 (surfaces to test) |
-| **Status** | `in-review` — code + tests done 2026-11-15, waiting for GATE 2 |
-| **Branch** | `feat/b7-front-end-screens` (group repo) — personal workshop copy at the repo root |
+| **Depends on** | B0 = BE-01 #2 + FE-01 #3 (closed) · real-backend checkboxes wait for BE-03 #6, BE-05 #9, BE-06 #11, BE-07 #13, BE-08 #15, BE-09 #17 |
+| **Feeds** | Artefact 1 (screens, deployment evidence) · Artefact 3 (surfaces to test) · SH-02 #19 (integration) |
+| **Status** | `in-review` — code + tests done 2026-11-15 (mock build), waiting for GATE 2 and for the BE issues |
+| **Branch** | `feat/b7-front-end-screens` (group repo, not pushed yet) — personal workshop copy at the repo root |
 | **AI use** | Drafted and coded with Claude Code (see `AI_USE.md`, 2026-11-15) |
 
 **User story.** *As an employee of an organisation that uses WhatsUp, I want clear screens to
-sign in, chat in my team's channels, share files with a confidential flag, report suspicious
-messages and manage my profile, and, as an IT admin, to manage roles and review security
-events, so that our internal communication stays inside a trusted tool.*
+sign in, chat in direct and group conversations, share files with a confidential flag, report
+suspicious messages and manage my profile; as a group manager, to manage my groups' members;
+and, as an IT admin, to manage roles and review reports and security events — so that our
+internal communication stays inside a trusted tool.*
 
 ## 1. Research
 
 - **Back-office today** (B0, group commit `0e5302d`): `/api/health`, `/api/greetings/hello` and
-  FastAPI docs only. No auth, channels, messages, profile or admin endpoints. B1–B3 are `to-plan`.
-- **Scaffold front**: React 19.3, TypeScript 7 strict, Vite 8, CSS Modules, one greeting
-  screen. The team **removed** browser test tooling from the front package (commit `53b3f07`),
-  so browser tests must live elsewhere.
-- **Edge**: nginx CSP `default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:`
-  → no inline style or script, no CDN.
-- **Rules**: no new dependency without need (rule 8); never trust the browser (rule 6); the
-  front is never an authorisation layer (frontend skill).
-- **Requirements**: SR-AUTH/SESS/AC/VAL/FILE govern what the screens send; new SR-FE-01…06
-  govern the front itself. CAF 4.0: A4.b, B4.a (`../03. Frameworks/caf-4.0-baseline.md`).
+  FastAPI docs only. All BE issues except BE-01 are open and unassigned (checked 2026-11-15).
+- **Backlog** (GitHub): FE-02…FE-08 open, unassigned, all blocked by BE issues; SH-01 #4 (API
+  contract) open and unassigned — it blocks FE-02. Vocabulary is **conversations** (direct and
+  group) with participants, group managers, WebSockets.
+- **Scaffold front**: React 19.3, TypeScript 7 strict, Vite 8, CSS Modules. The team removed
+  browser test tooling from the front package (commit `53b3f07`) → browser tests live in `test/`.
+- **Edge**: nginx CSP `default-src 'self'` → no inline style/script, no CDN.
+- **Rules**: no new dependency (rule 8); never trust the browser (rule 6).
+- **Requirements**: SR-AUTH/SESS/AC/VAL/FILE/LOG; SR-FE-01…06; SR-WS-01…04 (new). CAF 4.0: A4.b, B4.a.
 
 ## 2. Design
 
-- **Contract-first:** the screens call the **API contract v0.1** (Blueprint §4). The contract
-  is the hand-off to B1–B3; it states routes, schemas, cookies, CSRF, errors and limits.
-- **Two implementations, one interface (`WhatsUpApi`):** *live* (fetch to `/api/…`) and
-  *mock* (in-browser data, `VITE_API_MODE=mock`). The mock applies the contract's rules, so it
-  is an executable specification for the back team.
-- **Real integration today:** the *System status* screen calls the live `/api/health` and
-  `/api/greetings/hello` (browser → nginx → FastAPI → MySQL). The sign-in screen detects that
-  `/api/auth` does not exist yet and says so.
-- **Screens:** Sign in · Create an account · Channels · Chat · Profile · Admin · System status ·
-  Not found. Design system §6 plus Notice, Badge, Avatar, AppShell, Link (one-line entries added).
+- **Contract-first:** the screens call the **API contract v0.2** (Blueprint §4), written as the
+  proposal for **SH-01 #4** (endpoints, payloads, cookies, error codes, entities, WebSocket conventions).
+- **Two implementations, one interface (`WhatsUpApi`):** *live* (fetch + WebSocket to `/api/…`)
+  and *mock* (`VITE_API_MODE=mock`): data in `localStorage` shared by the tabs of one browser,
+  one session per tab, live events through `BroadcastChannel` — so two tabs = two users chatting
+  live. The mock applies the contract's rules: an executable specification for the BE issues.
+- **Real integration today:** *System status* calls the live `/api/health` and
+  `/api/greetings/hello`; sign-in detects that `/api/auth` does not exist yet and says so.
 - Full design: Blueprint §7.
 
 ## 3. Plan
 
 | # | Step | Done |
 |---|---|---|
-| 1 | Contract v0.1 types + `WhatsUpApi` interface (`types/api.ts`) | ✔ |
-| 2 | HTTP client: same-origin, CSRF header, timeout, safe errors; runtime parsers | ✔ |
-| 3 | Live implementation + mock implementation (seeded demo organisations) | ✔ |
-| 4 | Router (history API, internal paths only) + auth context + AppShell | ✔ |
-| 5 | Screens: login, register, channels, chat (polling, attachment, report), profile, admin, status, 404 | ✔ |
-| 6 | Dockerfile build arg `VITE_API_MODE` (default `live`) | ✔ |
-| 7 | `test/`: smoke + acceptance (pytest + Playwright in Docker), `run-tests.sh`, README | ✔ |
-| 8 | Docs: Blueprint §4/§6/§7/§9, SR-FE group, CAF baseline, this story, B0 retro | ✔ |
+| 1 | Contract v0.2 types + `WhatsUpApi` (conversations, members, directory, reports, realtime) | ✔ |
+| 2 | HTTP client (CSRF, timeout, safe errors, upload with progress); runtime parsers incl. WebSocket frames | ✔ |
+| 3 | Live API + live WebSocket client (back-off, 4401, catch-up); mock API + event bus | ✔ |
+| 4 | Router + auth context + realtime context + AppShell | ✔ |
+| 5 | Screens: login, register, conversations, chat (live, attachments, report, members), profile, admin (users, reports, audit), status, 404 | ✔ |
+| 6 | nginx `location = /api/ws` (Upgrade headers) + Vite dev proxy `ws: true`; Dockerfile `VITE_API_MODE` | ✔ |
+| 7 | `test/`: smoke + acceptance per backlog issue (`test_feNN_acN_…`) | ✔ |
+| 8 | Docs: Blueprint v1.2, SR-WS + SR-FE, EH-17, CAF baseline, this story, B0 retro, Way of Working; GitHub issue texts | ✔ |
 
-**GATE 1 — plan validated:** `validated: yes` — Ambroise, 2026-11-15 (instruction to build the
-front with contract + mock; option chosen among three presented).
+**GATE 1 — plan validated:** `validated: yes` — Ambroise, 2026-11-15 (contract + mock option;
+"OK Go pour prendre en compte les issues").
 
-## 4. Execute — what was built
+## 4. Acceptance criteria — per backlog issue
 
-- `src/frontend/src/` — 44 files (37 TypeScript, 7 CSS; see Blueprint §7 table). Scaffold `HomeScreen` and `greetingService.ts` replaced (the greeting moved to the Status screen and the shared API layer). Group back-office **unchanged**.
-- `src/frontend/Dockerfile` — `ARG VITE_API_MODE=live` in the build stage.
-- `test/` — `compose.test.yaml` (services `frontend-mock` on :3001 and `tests`), `Dockerfile`
-  (Playwright Python image), `smoke/`, `acceptance/`, `run-tests.sh`, `README.md`.
+Legend: **Done (mock)** = implemented and covered by an automated test on the mock build ·
+**Waits** = needs the named BE issue on the live stack before the GitHub checkbox can be ticked.
 
-## 5. Acceptance criteria
+### FE-02 #7 — Login screen and authenticated route handling
 
-**On the live stack (today's back-office):**
-
-| AC | Given / When / Then | Test |
-|---|---|---|
-| AC-L1 | Given the stack is up, when I open *System status* and click *Fetch hello*, then health shows `ok` and the greeting `hello` comes from MySQL | `test_ac_l1_…` |
-| AC-L2 | When I open *Sign in* and `/api/auth/me` answers 404, then a notice says sign-in is not provided yet; once B1 answers 401, the notice is gone | `test_ac_l2_…` |
-| AC-L3 | When I am signed out and open `/channels`, `/channels/1`, `/profile` or `/admin`, then I land on `/login` | `test_ac_l3_…` |
-| AC-L4 | *System status* shows API mode `live` | `test_ac_l4_…` |
-
-**On the mock build (all screens):**
-
-| AC | Given / When / Then | SR | Test |
+| Issue checkbox | Code | Test | State |
 |---|---|---|---|
-| AC-01 | A wrong password and an unknown user show the **same** message `Invalid username or password.` | SR-AUTH-03 | `test_ac_01_…` |
-| AC-02 | Alice (Acme Legal) sees `#general`, `#legal-team`, `#random` — never Globex channels | SR-AC-02 | `test_ac_02_…` |
-| AC-03 | A member posts a message; it appears at the end, marked *You* | SR-VAL-01 | `test_ac_03_…` |
-| AC-04 | A message containing `<b>…</b>` is displayed as text; no `<b>` element is created | SR-VAL-02, SR-FE-03 | `test_ac_04_…` |
-| AC-05 | A non-member opening a private channel sees no messages and is told to ask a group manager | SR-AC-02 | `test_ac_05_…` |
-| AC-06 | Joining a public channel opens its chat | — | `test_ac_06_…` |
-| AC-07 | A file attached with *Mark as confidential* shows a *Confidential* badge | scenario 3 | `test_ac_07_…` |
-| AC-08 | A suspicious message can be reported with a reason; the user gets a confirmation | SR-LOG-01 | `test_ac_08_…` |
-| AC-09 | The display name updates in the header; a fake PNG avatar is refused; a real PNG is accepted | SR-FILE-01 | `test_ac_09_…` |
-| AC-10 | An employee has no *Admin* link and `/admin` says *reserved*; the IT admin sees users, changes a role, and the change appears in the audit events | SR-AC-04, SR-LOG-01 | `test_ac_10_…` |
-| AC-11 | After *Sign out*, `/channels` sends me back to `/login` | SR-AUTH-05 (UX side) | `test_ac_11_…` |
-| AC-12 | A new user registers, is **not** signed in automatically, then signs in | SR-SESS-03 | `test_ac_12_…` |
-| AC-13 | A user from another organisation sees only their own channels; opening an Acme channel says *Channel not found.* | SR-AC-03 | `test_ac_13_…` |
+| Login form validates input and displays API errors clearly | `LoginScreen` (required, max lengths, generic error alert, 429, "not available") | `test_fe02_ac1_…` | Done (mock) |
+| Successful login enters the chat interface | navigates to `/conversations` | `test_fe02_ac2_…` | Done (mock) |
+| Logout returns the user to login | `AuthContext.logout` | `test_fe02_ac3_…`, `test_live_fe02_ac3_…` | Done (mock + live redirect) |
+| Session expiry is handled without broken screens | 401 / WebSocket 4401 → `/login?expired=1` + notice | `test_fe02_ac4_…` | Done (mock) |
+| Authentication is verified against the real backend | live API ready | `test_live_fe02_ac5_…` (adapts when BE-03 lands) | **Waits** SH-01 #4, BE-03 #6 |
 
-**Definition of done:** strict type-check and production build pass in both modes · live bundle
-contains no mock code · smoke + acceptance suites green · GATE 2 review.
+### FE-03 #10 — Conversation list and messaging interface
 
-## 6. Review — GATE 2
+| Issue checkbox | Code | Test | State |
+|---|---|---|---|
+| Conversation list loads for the authenticated user | `ConversationsScreen` (group/direct badges, org-scoped) | `test_fe03_ac1_…` (×2) | Done (mock) |
+| Users can open a conversation and see message history | `ChatScreen` + `useMessages` | `test_fe03_ac2_…` | Done (mock) |
+| Compose/send works with the actual backend | `Composer`, direct conversation start | `test_fe03_ac3_…` (×3) | Done (mock) · **Waits** BE-05 #9 |
+| Loading, empty and error states are visible | loading text, empty list/messages, 403/404 notices | `test_fe03_ac4_…` (×2) | Done (mock) |
+| Layout remains usable on mobile and desktop | two columns ≥ 720 px, stacked below | `test_fe03_ac5_…` (1280 px and 375 px) | Done (mock) |
+
+### FE-04 #12 — Real-time chat and message state
+
+| Issue checkbox | Code | Test | State |
+|---|---|---|---|
+| Two logged-in users exchange messages without page refresh | `RealtimeContext`, `liveRealtime.ts` (WebSocket) / mock bus | `test_fe04_ac1_…` (two tabs) | Done (mock) · **Waits** BE-06 #11 |
+| Message history remains correct after reload | REST history ordered by id | `test_fe04_ac2_…` | Done (mock) |
+| Reconnect restores the visible conversation state | back-off reconnect + `?after_id=` catch-up, 3 s polling while offline, "Live/Reconnecting" label | `test_fe04_ac3_…` | Done (mock) |
+| Duplicate event handling is tested | `mergeMessages` by id; mock delivers each event twice | `test_fe04_ac4_…` | Done (mock) |
+
+### FE-05 #14 — Attachments and confidentiality controls
+
+| Issue checkbox | Code | Test | State |
+|---|---|---|---|
+| Upload control supports allowed file types and size feedback | `Composer` (MIME + extension allowlist, 5 MB, name — size shown) | `test_fe05_ac1_…` | Done (mock) |
+| User can set attachment classification | "Mark as confidential" → `Confidential` badge | `test_fe05_ac2_…` | Done (mock) |
+| Attachment links call the authenticated download API | `download_url` kept only if same-origin (`/api/attachments/{id}`) | `test_fe05_ac3_…` | Done (mock) · **Waits** BE-07 #13 |
+| Upload progress, failure and permissions errors are displayed | XHR progress bar; API errors (403/413/415) shown | `test_fe05_ac4_…` | Done (mock) |
+
+### FE-06 #16 — Group management and admin screens
+
+| Issue checkbox | Code | Test | State |
+|---|---|---|---|
+| Group managers can view and edit permitted group membership | `MembersPanel` (add/remove, server `can_manage`) | `test_fe06_ac1_…` | Done (mock) · **Waits** BE-08 #15 |
+| Admin users can view user/role management and audit screens | `AdminScreen` | `test_fe06_ac2_…` | Done (mock) |
+| Restricted controls are hidden or disabled for other roles | Admin link, New group, members controls, own role | `test_fe06_ac3_…` | Done (mock) |
+| Server-side authorisation remains the final authority | UI never decides; admin data only from 403-protected endpoints | `test_fe06_ac4_…` | Done (mock) · **Waits** BE-08 #15 |
+| Empty, error and success states are usable | `ListState` (loading/error/empty/table), notices | `test_fe06_ac5_…` | Done (mock) |
+
+### FE-07 #18 — Suspicious-content reporting and audit views
+
+| Issue checkbox | Code | Test | State |
+|---|---|---|---|
+| Users can report a message with confirmation feedback | `MessageItem` report form | `test_fe07_ac1_…` | Done (mock) |
+| Admin users can view relevant audit/report entries | Admin "Reported messages" + "Security audit events" | `test_fe07_ac2_…` | Done (mock) · **Waits** BE-09 #17 |
+| Unauthorized users cannot navigate to privileged views | route guard + hidden link | `test_fe07_ac3_…` | Done (mock) |
+| API denial is handled gracefully even when a user manipulates routes | 403/404 notices with a way back; bad ids → 404 page | `test_fe07_ac4_…` | Done (mock) |
+
+### FE-08 #25 — Optional external service (P2)
+
+Not started: BE-10 #24 has no provider chosen. Recommendation: leave unassigned until BE-10 is decided.
+
+### Outside the FE issues (blueprint scope)
+
+Register and Profile screens (`test_b7_profile_…`, `test_fe03_ac4_empty_states` covers registration)
+and the System status screen (`test_live_status_…`). No backlog issue exists for them yet.
+
+**Definition of done (issue DoD):** demonstrated on a local instance · reviewed by one teammate ·
+tests done · error handling and authorisation reviewed · contract documented (Blueprint §4) ·
+issue linked to a merged PR. **Today:** everything except the review, the merged PR and the
+"real backend" checkboxes.
+
+## 5. Review — GATE 2
 
 | Check | Result |
 |---|---|
 | `tsc --noEmit && vite build` (live and mock), in Docker | pass — 2026-11-15 |
-| Live bundle free of mock code and demo password (`grep -r demo-password dist/`) | pass — 2026-11-15 |
-| `bash test/run-tests.sh all` | **27 passed** (10 smoke, 17 acceptance) — 2026-11-15, run by Claude Code; to be re-run by Ambroise as evidence. The first run exposed a race in AC-10's test (reload before sign-out finished), fixed in the test |
+| Live bundle free of mock code and demo password | pass — 2026-11-15 |
+| nginx config test with the WebSocket location (`nginx -t`) | pass — 2026-11-15 |
+| `bash test/run-tests.sh all` | **45 passed** (10 smoke, 35 acceptance) — 2026-11-15, plus a second acceptance run (35/35) to check stability. Run by Claude Code; to be re-run by Ambroise as evidence |
 | Second-person code review | **pending** |
 
 **Ship allowed:** `pending` — needs the reviewer's `yes`. Only a critical finding blocks.
 
-## 7. Ship
+## 6. Ship
 
-Open a PR from `feat/b7-front-end-screens` to the group repo with `src/frontend/`, `test/`, and
-the Blueprint/SR changes. Squash-merge after review. Hand the **API contract v0.1** to the B1–B3
-owners. When an endpoint lands, AC-L2 flips by itself, and the mock tests stay valid as the
-reference behaviour.
+1. Agree **SH-01 #4** with a backend representative using Blueprint §4 (contract v0.2).
+2. Open a PR from `feat/b7-front-end-screens` to the group repo with `src/frontend/`, `test/`
+   and `Closes #7`… only for issues whose "real backend" checkbox is satisfied; otherwise
+   `Refs #7, #10, #12, #14, #16, #18`.
+3. When each BE issue lands, run `bash test/run-tests.sh` + a manual two-browser check on the
+   live stack, then tick the remaining checkbox.
 
-## 8. Known limits (honest list)
+## 7. Known limits (honest list)
 
-- Until B1–B3 ship, the live stack shows only *Status* and *Sign in* — every other screen works
-  in the mock build only.
-- Polling every 3 s with `after_id` does not pick up an attachment added to a message *after*
-  another user has already received it (WebSockets in v0.2 fix this).
-- No group-manager screen yet (add/remove members of private channels) — v0.2.
+- Until the BE issues ship, the live stack shows only *Status* and *Sign in*; every other screen
+  works in the mock build only.
 - The mock's rules are a **specification**, not protection: they run in the browser.
+- The mock cannot show a real network reconnect; FE-04 AC3 is tested as "leave and come back"
+  (socket closed and reopened, REST catch-up). The real back-off path is checked manually on BE-06.
+- No organisation-membership screen (adding users to an organisation) — not in any FE issue.

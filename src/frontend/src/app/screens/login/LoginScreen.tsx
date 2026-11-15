@@ -26,7 +26,7 @@ export default function LoginScreen({ search }: { search: URLSearchParams }) {
     setError(null);
     try {
       await login(username.trim(), password);
-      navigate('/channels', { replace: true });
+      navigate('/conversations', { replace: true }); // FE-02: straight into the chat interface
     } catch (loginError) {
       // One generic message whatever failed (SR-AUTH-03): the server's message is reused as-is.
       setError(errorMessage(loginError));

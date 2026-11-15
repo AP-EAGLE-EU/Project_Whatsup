@@ -6,14 +6,9 @@ import MessageBubble from '../../components/MessageBubble';
 import Notice from '../../components/Notice';
 import uiStyles from '../../components/ui.module.css';
 import type { Attachment, Message } from '../../types/api';
+import { formatSize } from '../../utils/format';
 import { isSafeDownloadHref } from '../../utils/guards';
 import styles from './chat.module.css';
-
-function formatSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
 
 function AttachmentChip({ attachment }: { attachment: Attachment }) {
   const label = `${attachment.filename} (${formatSize(attachment.size_bytes)})`;

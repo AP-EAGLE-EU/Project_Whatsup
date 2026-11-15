@@ -18,7 +18,7 @@ const ROUTE_TITLES: Record<Route['name'], string> = {
   home: 'WhatsUp',
   login: 'Sign in',
   register: 'Create an account',
-  channels: 'Channels',
+  conversations: 'Conversations',
   chat: 'Chat',
   profile: 'Profile',
   admin: 'Administration',
@@ -40,7 +40,7 @@ export default function AppShell({ route, children }: AppShellProps) {
   const { state, logout } = useAuth();
   const mainRef = useRef<HTMLElement>(null);
   const user = state.status === 'authenticated' ? state.user : null;
-  const section = route.name === 'chat' ? 'channels' : route.name;
+  const section = route.name === 'chat' ? 'conversations' : route.name;
 
   useEffect(() => {
     document.title = `${ROUTE_TITLES[route.name]} · WhatsUp`;
@@ -53,15 +53,15 @@ export default function AppShell({ route, children }: AppShellProps) {
         Skip to content
       </a>
       <header className={styles.header}>
-        <Link to={user ? '/channels' : '/login'} className={styles.brand}>
+        <Link to={user ? '/conversations' : '/login'} className={styles.brand}>
           WhatsUp
         </Link>
         {api.mode === 'mock' && <Badge tone="brand">Mock mode</Badge>}
         <nav aria-label="Main" className={styles.nav}>
           {user && (
             <>
-              <NavLink to="/channels" active={section === 'channels'}>
-                Channels
+              <NavLink to="/conversations" active={section === 'conversations'}>
+                Conversations
               </NavLink>
               <NavLink to="/profile" active={section === 'profile'}>
                 Profile

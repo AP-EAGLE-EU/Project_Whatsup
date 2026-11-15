@@ -53,16 +53,21 @@ WSTG v4.2 category [2], labelled per OWASP Top 10:2021 [3], findings scored with
 | EH-04 | Discover which usernames exist | login/register responses, timing | ATHN | A07 | SR-AUTH-03 | A2 |
 | EH-05 | Steal or reuse a session cookie | cookie jar, second browser | SESS | A07 | SR-SESS-01/03 | A2 |
 | EH-06 | Audit cookie flags and expiry; force CSRF on POSTs | raw `Set-Cookie`, crafted form | SESS | A07 | SR-SESS-02/04/05 | A2/A5 |
-| EH-07 | Read `#general` messages without any session | `GET /api/channels/<id>/messages` | ATHZ | A01 | SR-AC-01 | A3 |
-| EH-08 | As alice, read a channel she never joined; fetch bob's profile by iterating `/api/users/<id>` | object IDs | ATHZ | A01 | SR-AC-02/03 | A3 |
+| EH-07 | Read `#general` messages without any session | `GET /api/conversations/<id>/messages` | ATHZ | A01 | SR-AC-01 | A3 |
+| EH-08 | As alice, read a conversation she is not a participant of; as mallory (other organisation), reach Acme objects by ID; fetch bob's profile by iterating `/api/users/<id>` | object IDs | ATHZ | A01 | SR-AC-02/03 | A3 |
 | EH-09 | Plant stored XSS in a message body rendered in bob's browser | message body → other clients | INPV | A03 | SR-VAL-01/02 | A4 |
-| EH-10 | SQL injection in login and channel routes | string parameters | INPV | A03 | SR-VAL-03 | A4 |
+| EH-10 | SQL injection in login and conversation routes | string parameters | INPV | A03 | SR-VAL-03 | A4 |
 | EH-11 | Upload an HTML/SVG avatar (stored XSS) or 5 MB file; attempt `../../` names | avatar upload | INPV/BUSL | A04 | SR-FILE-01/03/04 | A4 |
 | EH-12 | Fetch another user's avatar directly, unauthenticated | avatar storage/route | ATHZ | A01 | SR-FILE-02 | A3 |
 | EH-13 | Audit security headers, CSP, TLS protocol/ciphers, HSTS, HTTP→HTTPS redirect | nginx edge | CONF/CRYP | A02/A05 | SR-COMM-01…03, SR-CONF-01 | A5 |
 | EH-14 | Trigger stack traces / debug output; reach framework docs in deployment | error paths, `/api/docs` | ERRH/CONF | A05 | SR-ERR-01/02, SR-AC-05 | A3/A5 |
 | EH-15 | Version and dependency sweep: banners, `pip-audit`, `npm audit` | stack | CONF | A06 | SR-DEP-01/02 | A6 |
 | EH-16 | Confirm security events land in logs — and nothing sensitive does | `docker compose logs` | CONF | A09 | SR-LOG-01…03 | A6 |
+| EH-17 | Check the live channel's access rules: handshake without a session, handshake from a foreign `Origin`, events still received after being removed from a group | `/api/ws` | CLNT-10 | A01/A07 | SR-WS-01…04 | A3 |
+
+Added 2026-11-15 with contract v0.2. Group backlog link: this table is the plan for **SH-03 (#20)**
+"security smoke tests against five defined scenarios" (scenario 1 → EH-07/08/17, scenario 2 → EH-08,
+scenario 3 → EH-11/12, scenario 4 → EH-03…06, scenario 5 → EH-08/14).
 
 Each story pair executes its rows end-to-end in one session and files evidence the same day.
 

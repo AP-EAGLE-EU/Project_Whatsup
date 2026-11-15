@@ -1,7 +1,7 @@
 # WhatsUp — Security Requirements (OWASP ASVS baseline)
 
 - **Status:** Proposal — oracle for the A stories; adopted with the OWASP baseline (`../03. Frameworks/owasp-security-baseline.md`)
-- **Date:** 2026-11-04 · **Updated:** 2026-11-15 (SR-FE group, CAF 4.0 column) · **Owner:** Ambroise (cyber referent) · Drafted with Claude Code (see `AI_USE.md`)
+- **Date:** 2026-11-04 · **Updated:** 2026-11-15 (SR-FE and SR-WS groups, CAF 4.0 column, backlog links) · **Owner:** Ambroise (cyber referent) · Drafted with Claude Code (see `AI_USE.md`)
 - **Applies to:** the adopted team stack (React + FastAPI + MySQL, modular monolith —
   decision logged in `../01. Way_of_working/Way_of_Working.md`). Extension point: story
   A1 adds SRs for WebSockets, organisation isolation and audit integrity.
@@ -47,8 +47,8 @@ traceability summary says which CAF contributing outcome each SR group supports.
 | ID | Requirement | Verified by |
 |----|-------------|-------------|
 | SR-AC-01 | `/api/*` is deny-by-default: every endpoint requires a valid session except an explicitly listed public set (health check only) | A3 · WSTG-ATHZ |
-| SR-AC-02 | Object-level checks: reading/posting messages requires membership of that channel; profiles expose only public fields | A3 · WSTG-ATHZ |
-| SR-AC-03 | Knowing/guessing an ID grants nothing (IDOR): `/api/users/2`, `/api/channels/3/messages` re-check authorisation | A3 · WSTG-ATHZ |
+| SR-AC-02 | Object-level checks: reading/posting messages requires being a participant of that conversation; changing members requires being a manager of that group; profiles expose only public fields | A3 · WSTG-ATHZ |
+| SR-AC-03 | Knowing/guessing an ID grants nothing (IDOR): `/api/users/2`, `/api/conversations/3/messages` re-check authorisation; another organisation's objects answer like missing ones | A3 · WSTG-ATHZ |
 | SR-AC-04 | All authorisation decisions happen server-side; the client is never trusted | A3 · WSTG-ATHZ |
 | SR-AC-05 | No admin, debug or documentation endpoints are exposed in the deployment under test (e.g. FastAPI `/api/docs`, `/api/openapi.json` disabled or gated) | A3/A5 · WSTG-CONF |
 
@@ -124,6 +124,18 @@ these SRs only say what the React front must **not** do. Every control the front
 | SR-FE-05 | State-changing requests carry the CSRF header (double-submit) and same-origin credentials; requests time out; users only see safe messages, never raw server bodies | A2 · WSTG-SESS/ERRH |
 | SR-FE-06 | The mock build (fictional demo accounts) is never the system under test; a live build contains no mock code (checked by grepping the built bundle) | A6 · WSTG-CONF |
 
+## SR-WS — WebSockets (ASVS V3/V4/V13 · A01/A07 · STRIDE Spoofing/Elevation/Information disclosure)
+
+Added 2026-11-15 with the API contract v0.2 (Blueprint §4) for BE-06 (#11) and FE-04 (#12).
+This fills the "extension point" above; story A1 still threat-models the live channel.
+
+| ID | Requirement | Verified by |
+|----|-------------|-------------|
+| SR-WS-01 | The WebSocket handshake requires a valid session cookie; without one the server closes with code 4401 | A2/A3 · WSTG-CLNT-10 |
+| SR-WS-02 | The handshake checks the `Origin` header against the application's own origin (no cross-site WebSocket hijacking) | A3 · WSTG-CLNT-10 |
+| SR-WS-03 | Events are delivered only to participants of the conversation, re-checked at send time (a removed member stops receiving); clients cannot subscribe themselves to other conversations | A3 · WSTG-ATHZ |
+| SR-WS-04 | Session expiry or logout closes the socket; messages sent over the live channel follow the same validation as REST (SR-VAL-01) | A2 · WSTG-SESS |
+
 ## Traceability summary
 
 | SR group | STRIDE | Top 10 2021 | Attack scenarios | Stories | Artefact | CAF 4.0 |
@@ -134,6 +146,11 @@ these SRs only say what the React front must **not** do. Every control the front
 | COMM, CONF, ERR | I | A02, A05 | EH-02, EH-13, EH-15 | A5 | 3 | B3.b, B4.a, B4.b |
 | LOG, DEP | R, T | A09, A06 | EH-15, EH-16 | A6 | 2 & 3 | C1.a, C1.b, A4.a, A4.b, B4.d |
 | FE | T, I | A03, A05, A07 | EH-06, EH-09, EH-13 | A2–A5 | 3 | A4.b, B4.a |
+| WS | S, E, I | A01, A07 | EH-17 | A2/A3 | 2 & 3 | B2.a, B4.a |
+
+**Group backlog link (GitHub issues):** AUTH/SESS → BE-03 #6 · AC → BE-04 #8, BE-08 #15 ·
+VAL → BE-05 #9 · FILE → BE-07 #13 · LOG → BE-09 #17 · WS → BE-06 #11 · FE → FE-02…FE-07 ·
+all groups → SH-03 #20 (security smoke tests on the five scenarios).
 
 ## References (IEEE)
 

@@ -1,23 +1,28 @@
 // Live implementation: talks to the FastAPI back-office through the same-origin /api proxy.
-// Endpoints follow the API contract v0.1 (Blueprint §4). Today only /api/health and
-// /api/greetings/hello exist; the others answer "not available" until stories B1–B3 land.
+// Endpoints follow the API contract v0.2 (Blueprint §4, proposal for SH-01 #4). Today only
+// /api/health and /api/greetings/hello exist; the others answer "not available" until the
+// BE issues (#6, #8, #9, #11, #13, #15, #17) land.
 import type { WhatsUpApi } from '../types/api';
-import { parseOrThrow, request } from './httpClient';
+import { parseOrThrow, request, uploadWithProgress } from './httpClient';
+import { connectLiveRealtime } from './liveRealtime';
 import {
   listOf,
   parseAuditEvent,
-  parseChannel,
+  parseConversation,
+  parseDirectoryUser,
   parseField,
+  parseMember,
   parseMessage,
+  parseReport,
   parseUser,
 } from './parsers';
 
-function channelPath(channelId: number, suffix = ''): string {
-  return `/api/channels/${encodeURIComponent(String(channelId))}${suffix}`;
+function id(value: number): string {
+  return encodeURIComponent(String(value));
 }
 
-function messagePath(messageId: number, suffix: string): string {
-  return `/api/messages/${encodeURIComponent(String(messageId))}${suffix}`;
+function conversationPath(conversationId: number, suffix = ''): string {
+  return `/api/conversations/${id(conversationId)}${suffix}`;
 }
 
 export const liveApi: WhatsUpApi = {
@@ -39,40 +44,66 @@ export const liveApi: WhatsUpApi = {
     },
   },
 
-  channels: {
+  users: {
+    async directory() {
+      return parseOrThrow(await request('GET', '/api/users'), listOf('users', parseDirectoryUser));
+    },
+  },
+
+  conversations: {
     async list() {
-      return parseOrThrow(await request('GET', '/api/channels'), listOf('channels', parseChannel));
+      const data = await request('GET', '/api/conversations');
+      return parseOrThrow(data, listOf('conversations', parseConversation));
     },
-    async get(channelId) {
-      return parseOrThrow(await request('GET', channelPath(channelId)), parseChannel);
+    async get(conversationId) {
+      return parseOrThrow(await request('GET', conversationPath(conversationId)), parseConversation);
     },
-    async create(name) {
-      return parseOrThrow(await request('POST', '/api/channels', { json: { name } }), parseChannel);
+    async createGroup(name) {
+      const data = await request('POST', '/api/conversations', { json: { type: 'group', name } });
+      return parseOrThrow(data, parseConversation);
     },
-    async join(channelId) {
-      return parseOrThrow(await request('POST', channelPath(channelId, '/join')), parseChannel);
+    async openDirect(userId) {
+      const data = await request('POST', '/api/conversations', {
+        json: { type: 'direct', participant_id: userId },
+      });
+      return parseOrThrow(data, parseConversation);
+    },
+    async members(conversationId) {
+      const data = await request('GET', conversationPath(conversationId, '/members'));
+      return parseOrThrow(data, listOf('members', parseMember));
+    },
+    async addMember(conversationId, userId) {
+      const data = await request('POST', conversationPath(conversationId, '/members'), {
+        json: { user_id: userId },
+      });
+      return parseOrThrow(data, listOf('members', parseMember));
+    },
+    async removeMember(conversationId, userId) {
+      await request('DELETE', conversationPath(conversationId, `/members/${id(userId)}`));
     },
   },
 
   messages: {
-    async list(channelId, afterId) {
-      const query = afterId === undefined ? '' : `?after_id=${encodeURIComponent(String(afterId))}`;
-      const data = await request('GET', channelPath(channelId, `/messages${query}`));
+    async list(conversationId, afterId) {
+      const query = afterId === undefined ? '' : `?after_id=${id(afterId)}`;
+      const data = await request('GET', conversationPath(conversationId, `/messages${query}`));
       return parseOrThrow(data, listOf('messages', parseMessage));
     },
-    async post(channelId, body) {
-      const data = await request('POST', channelPath(channelId, '/messages'), { json: { body } });
+    async post(conversationId, body) {
+      const data = await request('POST', conversationPath(conversationId, '/messages'), {
+        json: { body },
+      });
       return parseOrThrow(data, parseMessage);
     },
-    async attach(messageId, { file, confidential }) {
+    async attach(messageId, { file, confidential }, onProgress) {
       const form = new FormData();
       form.append('file', file);
       form.append('confidential', confidential ? 'true' : 'false');
-      const data = await request('POST', messagePath(messageId, '/attachments'), { form });
+      const data = await uploadWithProgress(`/api/messages/${id(messageId)}/attachments`, form, onProgress);
       return parseOrThrow(data, parseMessage);
     },
     async report(messageId, reason) {
-      await request('POST', messagePath(messageId, '/reports'), { json: { reason } });
+      await request('POST', `/api/messages/${id(messageId)}/reports`, { json: { reason } });
     },
   },
 
@@ -93,13 +124,21 @@ export const liveApi: WhatsUpApi = {
       return parseOrThrow(await request('GET', '/api/admin/users'), listOf('users', parseUser));
     },
     async setRole(userId, role) {
-      const path = `/api/admin/users/${encodeURIComponent(String(userId))}`;
-      return parseOrThrow(await request('PATCH', path, { json: { role } }), parseUser);
+      const data = await request('PATCH', `/api/admin/users/${id(userId)}`, { json: { role } });
+      return parseOrThrow(data, parseUser);
     },
     async listAuditEvents() {
       const data = await request('GET', '/api/admin/audit-events?limit=100');
       return parseOrThrow(data, listOf('events', parseAuditEvent));
     },
+    async listReports() {
+      const data = await request('GET', '/api/admin/reports?limit=100');
+      return parseOrThrow(data, listOf('reports', parseReport));
+    },
+  },
+
+  realtime: {
+    connect: connectLiveRealtime,
   },
 
   system: {

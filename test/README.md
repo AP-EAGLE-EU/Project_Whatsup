@@ -4,9 +4,10 @@ Two suites, both run **inside Docker**, so nothing needs installing on Windows (
 Node, no browser driver):
 
 - **smoke/**: is the stack up and wired? (nginx, SPA, `/api` proxy, FastAPI, MySQL, headers, browser boot)
-- **acceptance/**: does each screen of story B7 behave as agreed?
-  - `test_acceptance_live.py`: AC-L1 to AC-L4, on the real stack (today's back-office)
-  - `test_acceptance_mock.py`: AC-01 to AC-13, on the mock build (every screen)
+- **acceptance/**: does each front issue of the group backlog behave as agreed?
+  - one file per GitHub issue, one test per acceptance checkbox: `test_fe02_ac4_…` = FE-02, 4th checkbox
+  - `test_fe02_login.py` to `test_fe07_reports_audit.py`: on the mock build (every screen)
+  - `test_acceptance_live.py`: on the real stack (today's back-office)
 
 Stack used by the tests:
 
@@ -14,7 +15,8 @@ Stack used by the tests:
 - `frontend-mock` on http://127.0.0.1:3001 (same front, demo data in the browser)
 - `tests`: pytest + Playwright Chromium, on the internal Docker network
 
-The acceptance criteria are written in `Project/04. Stories/B7-front-end-screens.md` §5.
+The acceptance criteria come from the GitHub issues FE-02 to FE-07. The table in
+`Project/04. Stories/B7-front-end-screens.md` §4 lists them, with their code and test.
 These are **functional** tests. The security assessment (stories A2 to A6) stays a
 human-executed activity, following `Project/04. Stories/Ethical-Hacking-scenario.md`.
 
@@ -42,7 +44,7 @@ human-executed activity, following `Project/04. Stories/Ethical-Hacking-scenario
 You should see:
 
 - `== Starting the stack …`, then the containers become `Healthy`
-- one dot per test, then a line like `27 passed in 25.84s`
+- one dot per test, then a line like `45 passed in 68.88s`
 - `== Done. JUnit report: test/reports/junit.xml`
 
 The first run takes several minutes, because it downloads the Playwright image (about 2 GB).
@@ -64,6 +66,10 @@ After a run, the mock front stays up on **http://127.0.0.1:3001**.
 - Users: `alice`, `bob`, `grace`, `itadmin` (Acme Legal) and `mallory` (Globex Finance)
 - Password for all: `demo-password-2026`
 - These accounts are fictional and exist **only** in the mock build.
+- To see live chat, open **two tabs**: sign in as `alice` in one and `bob` in the other, then
+  open `#general` in both. The tabs share the demo data; each tab keeps its own session.
+- To reset the demo data, open the browser developer tools (F12), then **Application**, then
+  **Local storage**, then delete `whatsup-mock-data-v2`.
 
 ### Stop everything
 
@@ -142,8 +148,14 @@ local WhatsUp stack (`127.0.0.1:3000`). Humans run the tests and capture the evi
 |---|---|---|
 | `smoke/test_smoke_stack.py` | healthz, index, SPA deep link, JS bundle, `/api/health`, DB greeting, baseline headers, browser boot | B0, B7 · SR-CONF-01 (regression guard) |
 | `smoke/test_smoke_mock.py` | mock front served, "Mock mode" badge, demo-account notice | B7 · SR-FE-06 |
-| `acceptance/test_acceptance_live.py` | AC-L1 to AC-L4 | B7 |
-| `acceptance/test_acceptance_mock.py` | AC-01 to AC-13 | B7 · SR-AUTH-03, SR-AC-02/03/04, SR-VAL-02, SR-FILE-01, SR-SESS-03 |
+| `acceptance/test_acceptance_live.py` | Status + greeting, FE-02 AC3 and AC5 on the live stack (AC5 adapts when BE-03 lands) | FE-02 #7 · BE-01 #2 |
+| `acceptance/test_fe02_login.py` | AC1 to AC4: validation and errors, sign-in, sign-out, session expiry | FE-02 #7 · SR-AUTH-03, SR-AUTH-05 |
+| `acceptance/test_fe03_conversations.py` | AC1 to AC5: list (own organisation only), history, send, direct message, plain-text markup, empty and error states, desktop and mobile layout | FE-03 #10 · SR-AC-02/03, SR-VAL-02 |
+| `acceptance/test_fe04_realtime.py` | AC1 to AC4: two tabs chat live, reload, reconnect catch-up, duplicates shown once | FE-04 #12 · SR-WS-03 |
+| `acceptance/test_fe05_attachments.py` | AC1 to AC4: allowed types, size feedback, confidential flag, download link, progress | FE-05 #14 · SR-FILE-01 |
+| `acceptance/test_fe06_groups_admin.py` | AC1 to AC5: manager adds and removes members, admin users and audit, hidden controls, refusal, empty, error and success states | FE-06 #16 · SR-AC-02/04 |
+| `acceptance/test_fe07_reports_audit.py` | AC1 to AC4: report with confirmation, admin reports list, privileged views refused, manipulated routes | FE-07 #18 · SR-AC-03/04, SR-LOG-01 |
+| `acceptance/test_b7_profile.py` | display name, avatar rules (no backlog issue yet) | B7 · SR-FILE-01 |
 
 Run outside Docker (advanced): `pip install -r test/requirements.txt`, then
 `playwright install chromium`, then `cd test && pytest`. The defaults target 127.0.0.1:3000

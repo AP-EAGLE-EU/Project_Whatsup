@@ -3,6 +3,7 @@
 - **Status:** v1.1 — 2026-11-15 (v1 adopted 2026-11-04) · **Owner:** the group · **Drafted by:** Ambroise with Claude Code (see root `AI_USE.md`)
 - **Merge note:** this document merges `overview.md` + `PRD.md` + `architecture.md` + `design-system.md` — those four files are retired by this merge and carry no further authority.
 - **v1.1 changes:** §4 now records the back-office **as built** (group repo commit `0e5302d`, PR #27 merged 2026-11-10) and the **API contract v0.1** between front and back; new §7 *Front-end design* (story B7); CAF 4.0 added to the traceability (§9). Sprint checklist and traceability renumbered §8 and §9.
+- **v1.2 changes (2026-11-15):** aligned with the group's GitHub backlog (`jackoturner/WhatsUpTeam_Coursework` issues #2–#25). The contract becomes **v0.2**, a proposal for **SH-01 (#4)**: "conversations" (direct + group, participants) replace "channels"; group membership (BE-08), a colleague directory, a reports list (BE-09) and **WebSocket conventions** (BE-06) are added. §7 maps every front feature to FE-02…FE-08; §9 maps the B stories to the backlog IDs.
 
 ## 0. Decision encoded (2026-11-04)
 
@@ -52,8 +53,8 @@
 **In scope (the 20% that matters):**
 
 - Register / login / logout
-- Direct and group messaging; channels/groups: list, create, join; membership within permissions
-- Post and read messages per channel — REST first, **WebSockets planned (IN scope per the team model — the PRD's polling-only rule is lifted; the security requirements must extend to WebSockets, flagged for story A1)**
+- Direct and group conversations: list, open a direct conversation, create a group (managers/admins); membership managed by group managers
+- Post and read messages per conversation — REST + **WebSockets (IN scope per the team model; conventions in the contract v0.2 below, requirements SR-WS-01…04 added 2026-11-15; story A1 still threat-models them)**
 - Attachments: upload/download permitted files, confidential marking, suspicious-content reporting; avatar upload on the profile
 - User profile: display name + avatar
 - A JSON API alongside the UI (clean targets for API testing)
@@ -70,7 +71,7 @@
 
 **Success criteria:**
 
-1. Two users (seeded `alice` and `bob`) chat in a shared channel (`#general`) on the Docker deployment
+1. Two users (seeded `alice` and `bob`) chat live in a shared group conversation (`#general`) on the Docker deployment
 2. Every assessed test area has something real to test
 3. Anyone on the team runs it locally with two commands
 
@@ -100,9 +101,9 @@ Discipline carried from the scaffold: `.env` required (no secrets in the repo), 
 | `User` | id, username UNIQUE, password_hash, display_name, avatar_path, organisation_id → Organisation, role (`employee` / `group_manager` / `org_admin`), failed_logins, locked_until, created_at | original model + team tenancy/roles + SR-AUTH-04 |
 | `Session` | id (random ≥128 bits), user_id → User, csrf_token, created_at, last_seen_at, expires_at | SR-SESS-01/03/04 (server-side sessions) |
 | `Organisation` | id, name | team model (tenant boundary) |
-| `Group` / `Channel` | id, name (unique per organisation), organisation_id → Organisation, is_private, created_by → User | original `Channel` + tenant isolation |
-| `ChannelMember` | channel_id → Channel, user_id → User (PK both) | membership check of SR-AC-02 |
-| `Message` | id, channel_id → Channel, user_id → User, body TEXT (≤1000), created_at | original model |
+| `Conversation` | id, type (`group` / `direct`), name (groups only, unique per organisation), organisation_id → Organisation, created_by → User, created_at | backlog BE-05 (#9) "direct and group conversations" + tenant isolation (replaces `Channel`, 2026-11-15) |
+| `ConversationMember` | conversation_id → Conversation, user_id → User (PK both), is_manager | participant check (SR-AC-02, BE-04 #8) + group managers (BE-08 #15) |
+| `Message` | id, conversation_id → Conversation, user_id → User, body TEXT (≤1000), created_at | original model |
 | `Attachment` | id, message_id → Message, uploader_id → User, storage_path (server-generated), original filename, content_type, size_bytes, confidential flag, created_at | team model (scenario 3) |
 | `MessageReport` | id, message_id → Message, reporter_id → User, reason, created_at | "report suspicious content" (§1) |
 | `AuditEvent` | id, organisation_id, actor_id → User, event_type, timestamp, source_ip, details | team model (scenario 5, SR-LOG) |
@@ -128,54 +129,78 @@ Full retro-documentation: `../04. Stories/B0-back-office-scaffold-retro.md`.
 | **Dev mode** | `compose.override.yaml`: Vite dev server + Uvicorn `--reload`, sources mounted read-only, polling for Windows file events |
 | **Tests** | `src/backend/tests/test_greeting.py`: 3 pytest cases on in-memory SQLite (reads the stored value, 404 when missing, 503 without leaking connection details) |
 
-### API contract v0.1 (front ↔ back)
+### API contract v0.2 (front ↔ back) — proposal for SH-01 (#4)
 
-Written by story B7 so the front and the back can be built in parallel. The front calls exactly
-these routes; the mock build implements the same rules in the browser
-(`src/frontend/src/services/mock/mockApi.ts`), which makes it an executable reference for B1–B3.
+Written by story B7 so the front and the back can be built in parallel. It answers the SH-01
+acceptance criteria: endpoints and payloads for auth, users, organisations, conversations,
+messages and files · WebSocket conventions · minimum entities (data model above) ·
+authentication method, cookies and error codes · kept in repository documentation (this
+section). **Status: proposal — needs the agreement of a backend representative to close SH-01.**
+The front calls exactly these routes; the mock build implements the same rules in the browser
+(`src/frontend/src/services/mock/mockApi.ts`), which makes it an executable reference for the
+BE issues.
 
 **Rules that apply to every route:**
 
 - JSON in and out, under `/api/`, same origin as the front (nginx proxy) — no CORS.
 - **Session:** `POST /api/auth/login` sets `session` (`HttpOnly`, `SameSite=Strict`, `Secure` on TLS, `Path=/`) and a readable `csrf_token` cookie. The front echoes `csrf_token` in the `X-CSRF-Token` header on every POST/PATCH/DELETE; the back rejects a missing or wrong header with 403 (SR-SESS-05).
 - **Deny by default:** every route answers **401** without a valid session, except `/api/health`, `/api/auth/login` and `/api/auth/register` (SR-AC-01).
-- **Organisation isolation:** every query is scoped to the caller's organisation; an object from another organisation answers **404**, exactly like a missing one (SR-AC-03).
-- **Errors:** `{"detail": "<message safe to show>"}`. Resource 404s carry their own detail (`Channel not found.`); FastAPI's bare `Not Found` is kept for unknown routes, which the front shows as "not available yet". 422 for validation, 409 for duplicates, 413/415 for uploads, 429 for login throttling.
-- **Lists** are wrapped: `{"channels": [...]}`, `{"messages": [...]}`, `{"users": [...]}`, `{"events": [...]}`. Links in responses (`avatar_url`, `download_url`) are same-origin relative paths.
+- **Organisation isolation:** every query is scoped to the caller's organisation; an object from another organisation answers **404**, exactly like a missing one (SR-AC-03, BE-04 #8).
+- **Participants only:** a conversation, its messages, members and attachments are visible to its participants only; a same-organisation non-participant gets **403** `You are not a participant of this conversation.` (SR-AC-02).
+- **Errors:** `{"detail": "<message safe to show>"}`. Resource 404s carry their own detail (`Conversation not found.`); FastAPI's bare `Not Found` is kept for unknown routes, which the front shows as "not available yet". 400/422 validation, 409 duplicates, 413/415 uploads, 429 login throttling.
+- **Lists** are wrapped: `{"conversations": [...]}`, `{"messages": [...]}`, `{"members": [...]}`, `{"users": [...]}`, `{"events": [...]}`, `{"reports": [...]}`. Links in responses (`avatar_url`, `download_url`) are same-origin relative paths. Messages are returned oldest first, ordered by `id`.
 
-| Method & path | Purpose | Access | Body / answer | Status | SRs |
+| Method & path | Purpose | Access | Body / answer | Backlog | SRs |
 |---|---|---|---|---|---|
-| `GET /api/health` | Liveness + DB check | public | → `{"status":"ok"}` | **exists** | — |
-| `GET /api/greetings/hello` | Scaffold demo | public today | → `{"message":"hello"}` | **exists** (to gate or remove: SR-AC-01) | SR-AC-01 |
-| `POST /api/auth/register` | Create an account (role `employee`) | public | `{username, display_name, password}` → 201 User | B1 | SR-AUTH-01/02, SR-VAL-04 |
-| `POST /api/auth/login` | Open a session | public, throttled | `{username, password}` → 200 User + cookies · 401 `Invalid username or password.` · 429 | B1 | SR-AUTH-03/04, SR-SESS-01…03 |
-| `POST /api/auth/logout` | Destroy the session server-side | session | → 204 | B1 | SR-AUTH-05 |
-| `GET /api/auth/me` | Who am I? | session | → User · 401 | B1 | SR-AC-01 |
-| `GET /api/channels` | Channels of my organisation | session | → `{channels: Channel[]}` | B2 | SR-AC-02 |
-| `POST /api/channels` | Create a public channel (I become a member) | session | `{name}` (`^[a-z0-9-]{2,32}$`) → 201 Channel · 409 | B2 | SR-VAL-01 |
-| `GET /api/channels/{id}` | One channel | session, same org | → Channel · 404 | B2 | SR-AC-03 |
-| `POST /api/channels/{id}/join` | Join a public channel | session, same org | → Channel · 403 if private | B2 | SR-AC-02 |
-| `GET /api/channels/{id}/messages?after_id=` | Messages (oldest first, max 100) | member | → `{messages: Message[]}` · 403 | B2 | SR-AC-02/03 |
-| `POST /api/channels/{id}/messages` | Post a message | member | `{body}` (1–1000) → 201 Message | B2 | SR-VAL-01/02 |
-| `POST /api/messages/{id}/attachments` | Attach a file to my message | author | multipart `file`, `confidential` → Message · 413/415 | B2 | SR-FILE-01…04 |
-| `GET /api/attachments/{id}` | Download | member of the channel | file, `Content-Disposition: attachment` | B2 | SR-FILE-02 |
-| `POST /api/messages/{id}/reports` | Report suspicious content | member | `{reason}` (1–500) → 204 | B2 | SR-LOG-01 |
-| `PATCH /api/profile` | Change my display name | session | `{display_name}` (1–64) → User | B3 | SR-VAL-04 |
-| `POST /api/profile/avatar` | Upload my avatar | session | multipart `file` (PNG/JPEG, ≤1 MB, content-sniffed) → User | B3 | SR-FILE-01…04 |
-| `GET /api/users/{id}/avatar` | Avatar image | session, same org | image | B3 | SR-FILE-02 |
-| `GET /api/admin/users` | Users of my organisation | `org_admin` | → `{users: User[]}` · 403 | B3 | SR-AC-04 |
-| `PATCH /api/admin/users/{id}` | Change a role (never my own) | `org_admin` | `{role}` → User · 403/404 | B3 | SR-AC-04, SR-VAL-04 |
-| `GET /api/admin/audit-events?limit=` | Security audit events | `org_admin` | → `{events: AuditEvent[]}` (newest first) | B3 | SR-LOG-01…03 |
+| `GET /api/health` | Liveness + DB check | public | → `{"status":"ok"}` | **exists** (BE-01 #2) | — |
+| `GET /api/greetings/hello` | Scaffold demo | public today | → `{"message":"hello"}` | **exists** (to gate or remove) | SR-AC-01 |
+| `POST /api/auth/register` | Create an account (role `employee`) | public | `{username, display_name, password}` → 201 User | BE-03 #6 | SR-AUTH-01/02, SR-VAL-04 |
+| `POST /api/auth/login` | Open a session | public, throttled | `{username, password}` → 200 User + cookies · 401 `Invalid username or password.` · 429 | BE-03 #6 | SR-AUTH-03/04, SR-SESS-01…03 |
+| `POST /api/auth/logout` | Destroy the session server-side | session | → 204 | BE-03 #6 | SR-AUTH-05 |
+| `GET /api/auth/me` | Who am I? | session | → User · 401 | BE-03 #6 | SR-AC-01 |
+| `GET /api/users` | Colleague directory (public fields only) | session, same org | → `{users: DirectoryUser[]}` | BE-04 #8 | SR-AC-02 |
+| `GET /api/conversations` | My conversations | session | → `{conversations: Conversation[]}` | BE-05 #9 | SR-AC-02 |
+| `POST /api/conversations` | Open a direct conversation (returns the existing one if any) or create a group | session; groups: `group_manager`/`org_admin` | `{type:"direct", participant_id}` · `{type:"group", name}` (`^[a-z0-9-]{2,32}$`) → 201/200 Conversation · 403 · 409 | BE-05 #9 | SR-VAL-01, SR-AC-04 |
+| `GET /api/conversations/{id}` | One conversation | participant | → Conversation · 403 · 404 | BE-05 #9 | SR-AC-02/03 |
+| `GET /api/conversations/{id}/messages?after_id=` | History or catch-up (max 100) | participant | → `{messages: Message[]}` | BE-05 #9 | SR-AC-02/03 |
+| `POST /api/conversations/{id}/messages` | Send | participant | `{body}` (1–1000) → 201 Message | BE-05 #9 | SR-VAL-01/02 |
+| `GET /api/conversations/{id}/members` | Members | participant | → `{members: Member[]}` | BE-08 #15 | SR-AC-02 |
+| `POST /api/conversations/{id}/members` | Add a member | manager of that group | `{user_id}` (same org) → `{members}` · 403 · 409 | BE-08 #15 | SR-AC-04, SR-LOG-01 |
+| `DELETE /api/conversations/{id}/members/{user_id}` | Remove a member (never myself) | manager of that group | → 204 · 403 | BE-08 #15 | SR-AC-04, SR-LOG-01 |
+| `POST /api/messages/{id}/attachments` | Attach a file to my message | author | multipart `file`, `confidential` → Message · 413/415 | BE-07 #13 | SR-FILE-01…04 |
+| `GET /api/attachments/{id}` | Download | participant | file, `Content-Disposition: attachment` | BE-07 #13 | SR-FILE-02 |
+| `POST /api/messages/{id}/reports` | Report suspicious content | participant | `{reason}` (1–500) → 204 | BE-09 #17 | SR-LOG-01 |
+| `PATCH /api/profile` | Change my display name | session | `{display_name}` (1–64) → User | (blueprint, no issue yet) | SR-VAL-04 |
+| `POST /api/profile/avatar` | Upload my avatar | session | multipart `file` (PNG/JPEG, ≤1 MB, content-sniffed) → User | (blueprint, no issue yet) | SR-FILE-01…04 |
+| `GET /api/users/{id}/avatar` | Avatar image | session, same org | image | (blueprint, no issue yet) | SR-FILE-02 |
+| `GET /api/admin/users` | Users of my organisation | `org_admin` | → `{users: User[]}` · 403 | BE-08 #15 | SR-AC-04 |
+| `PATCH /api/admin/users/{id}` | Change a role (never my own) | `org_admin` | `{role}` → User · 403/404 | BE-08 #15 | SR-AC-04, SR-VAL-04 |
+| `GET /api/admin/audit-events?limit=` | Security audit events (newest first) | `org_admin` | → `{events: AuditEvent[]}` | BE-09 #17 | SR-LOG-01…03 |
+| `GET /api/admin/reports?limit=` | Reported messages (newest first) | `org_admin` | → `{reports: MessageReport[]}` | BE-09 #17 | SR-LOG-01 |
+| `GET /api/ws` (WebSocket) | Live events | session cookie at handshake + `Origin` check | see below | BE-06 #11 | SR-WS-01…04 |
 
 **Schemas:** `User {id, username, display_name, role, organisation{id,name}, avatar_url|null}` ·
-`Channel {id, name, is_private, is_member, member_count}` ·
-`Message {id, channel_id, author{id, display_name, avatar_url}, body, created_at, attachment|null}` ·
+`DirectoryUser {id, username, display_name, avatar_url|null}` · `Member = DirectoryUser + {is_manager}` ·
+`Conversation {id, type: "group"|"direct", name, member_count, can_manage}` (for a direct
+conversation `name` is the other participant's display name; `can_manage` is computed by the
+server: participant **and** (`org_admin` **or** manager of that group)) ·
+`Message {id, conversation_id, author{id, display_name, avatar_url}, body, created_at, attachment|null}` ·
 `Attachment {id, filename, content_type, size_bytes, confidential, download_url}` ·
-`AuditEvent {id, event_type, actor_username|null, timestamp, source_ip, details}`.
+`AuditEvent {id, event_type, actor_username|null, timestamp, source_ip, details}` ·
+`MessageReport {id, message_id, conversation_id, conversation_name, reporter_username, reason, message_body, created_at}`.
 TypeScript source of truth: `src/frontend/src/types/api.ts`.
 
-**Deferred to v0.2:** direct messages, group-manager membership screens (add/remove members of
-a private channel), WebSockets (replaces the 3-second polling), attachment preview.
+**WebSocket conventions (BE-06 #11, FE-04 #12):**
+
+- URL `ws(s)://<same host>/api/ws`, proxied by nginx (`location = /api/ws`, Upgrade headers, 75 s read timeout). The CSP `connect-src 'self'` covers it.
+- **Handshake:** the server reads the `session` cookie and **checks the `Origin` header** against the app's own origin (protection against cross-site WebSocket hijacking). No valid session → close code **4401**; the front then sends the user to sign in.
+- **Server → client only**, JSON text frames: `{"type":"message.created","message":Message}` · `{"type":"message.updated","message":Message}` (e.g. attachment added) · `{"type":"conversation.updated","conversation_id":n}` (membership changed; the front re-reads over REST) · `{"type":"ping"}` every 25 s. Unknown types are ignored.
+- Events are sent **only to participants** of the conversation (membership checked at send time, not at connect time). The client sends nothing that can subscribe it to other rooms.
+- **Delivery is at-least-once:** the front de-duplicates by `message.id` and orders by `id`. After a reconnect it calls `GET …/messages?after_id=<last id>` to catch up; while the socket is down it polls every 3 s.
+- Session expiry or logout closes the socket (4401).
+
+**Deferred (v0.3):** attachment preview, message editing/deletion, organisation membership screens
+(adding users to an organisation), external-service integration (BE-10 #24 / FE-08 #25 — no provider chosen).
 
 ### Deployment (feeds Artefact 1)
 
@@ -213,15 +238,17 @@ a private channel), WebSockets (replaces the 3-second polling), attachment previ
 3. **Card** — white surface, 16px padding, used for panels
 4. **MessageBubble** — own messages: primary background, right-aligned; others: white, left-aligned
 
-**Screens:** Login · Register · Channel list (cards) · Chat view (bubbles + composer) · Profile (card + avatar) · **Admin screens (team model: users/roles, organisation membership, audit review)** · **System status (B7: health + database greeting)**. Responsive, mobile-friendly, retro chat-room feel.
+**Screens:** Login · Register · Conversation list (cards) · Chat view (bubbles + composer + members panel) · Profile (card + avatar) · **Admin screens (team model: users/roles, organisation membership, audit review)** · **System status (B7: health + database greeting)**. Responsive, mobile-friendly, retro chat-room feel.
 
 **Additions (one line each, story B7, 2026-11-15):**
 
 - **Notice** — inline message (info / success / warning / error); errors use `role="alert"`.
-- **Badge** — small label: `Private`, `Confidential` (danger), `Mock mode` (brand).
+- **Badge** — small label: `Group` / `Direct`, `Manager`, `Confidential` (danger), `Mock mode` (brand).
 - **Avatar** — uploaded image or initials on the brand colour; small (32 px) / large (96 px).
-- **AppShell** — header with brand, navigation (Channels · Profile · Admin for `org_admin` · Status), current user, Sign out; skip link to the content.
+- **AppShell** — header with brand, navigation (Conversations · Profile · Admin for `org_admin` · Status), current user, Sign out; skip link to the content.
 - **Link** — internal link that navigates without reloading but stays a real `<a href>`.
+- **MembersPanel** — card beside the chat (below it on mobile): members, `Manager` badge, add/remove for group managers (FE-06).
+- **Progress** — native `<progress>` + "Uploading… n%" while an attachment uploads (FE-05).
 
 No dark mode, no animations, no icon library. **If it is not on this page, it does not exist** — additions need a one-line entry here first (that rule is what keeps this one page long).
 
@@ -242,39 +269,41 @@ inline script, so the strict nginx CSP holds unchanged (SR-FE-02).
 |---|---|
 | `app/` | `App.tsx` (providers + route guard) · `AppShell.tsx` · `screens/<screen>/` |
 | `components/` | Design system: Button, TextField (Input), Card, MessageBubble, Notice, Badge, Avatar, Link |
-| `features/` | `auth/AuthContext.tsx` (who is signed in) · `chat/` (polling hook, composer, message item + report) · `greetings/` (scaffold panel, kept) |
+| `features/` | `auth/AuthContext.tsx` (who is signed in) · `realtime/RealtimeContext.tsx` (one live connection per session) · `chat/` (messages hook with de-duplication, composer, message item + report, members panel) · `greetings/` (scaffold panel, kept) |
 | `hooks/` | `useApi` (API context) · `useRoute` (history router, internal paths only) |
-| `services/` | `httpClient.ts` (fetch, CSRF header, timeout, safe errors) · `parsers.ts` (runtime shape checks) · `liveApi.ts` · `mock/` (demo API) · `api.ts` (chooses live or mock at build time) |
-| `types/` | `api.ts` — contract v0.1 types and the `WhatsUpApi` interface |
-| `utils/` | `guards.ts` (runtime checks, same-origin URL checks) · `roles.ts` |
+| `services/` | `httpClient.ts` (fetch, CSRF header, timeout, safe errors, upload with progress) · `parsers.ts` (runtime shape checks, incl. WebSocket frames) · `liveApi.ts` · `liveRealtime.ts` (WebSocket, back-off, 4401) · `mock/` (demo API + event bus) · `api.ts` (chooses live or mock at build time) |
+| `types/` | `api.ts` — contract v0.2 types and the `WhatsUpApi` interface |
+| `utils/` | `guards.ts` (runtime checks, same-origin URL checks) · `roles.ts` · `format.ts` |
 
 ### Routes and screens
 
-| Path | Screen | Access (UX guard — the API decides) | Calls |
-|---|---|---|---|
-| `/login` | Sign in | signed out | `POST /api/auth/login` |
-| `/register` | Create an account | signed out | `POST /api/auth/register` |
-| `/channels` | Channel list + create | signed in | `GET/POST /api/channels`, `POST …/join` |
-| `/channels/:id` | Chat: messages (3 s polling), composer, attachment + confidential flag, report | member | `GET/POST …/messages`, `POST /api/messages/{id}/attachments`, `…/reports` |
-| `/profile` | Display name, avatar, role and organisation (read-only) | signed in | `PATCH /api/profile`, `POST /api/profile/avatar` |
-| `/admin` | Users and roles, security audit events | `org_admin` | `/api/admin/*` |
-| `/status` | API mode, `/api/health`, database greeting, auth availability | public | `GET /api/health`, `GET /api/greetings/hello`, `GET /api/auth/me` |
-| `/` and others | redirect to `/channels` or `/login`; unknown path → *Page not found* | — | — |
+| Path | Screen | Access (UX guard — the API decides) | Calls | Backlog |
+|---|---|---|---|---|
+| `/login` | Sign in (validation, generic error, expiry notice) | signed out | `POST /api/auth/login` | FE-02 #7 |
+| `/register` | Create an account | signed out | `POST /api/auth/register` | (blueprint) |
+| `/conversations` | My conversations · new direct message (directory) · new group (managers/admins) · empty/error states | signed in | `GET/POST /api/conversations`, `GET /api/users` | FE-03 #10 |
+| `/conversations/:id` | Chat: history, composer, live updates (WebSocket, 3 s polling fallback, live/reconnecting label), attachment + confidential flag + progress, report, members panel | participant | `…/messages`, `/api/ws`, `/api/messages/{id}/attachments`, `…/reports`, `…/members` | FE-03 #10 · FE-04 #12 · FE-05 #14 · FE-06 #16 · FE-07 #18 |
+| `/profile` | Display name, avatar, role and organisation (read-only) | signed in | `PATCH /api/profile`, `POST /api/profile/avatar` | (blueprint) |
+| `/admin` | Users and roles · reported messages · security audit events (empty/error/success states) | `org_admin` | `/api/admin/*` | FE-06 #16 · FE-07 #18 |
+| `/status` | API mode, `/api/health`, database greeting, auth availability, live-updates status | public | `GET /api/health`, `GET /api/greetings/hello`, `GET /api/auth/me` | (B7) |
+| `/` and others | redirect to `/conversations` or `/login`; unknown path → *Page not found* | — | — | FE-02 #7 |
 
 ### Session and state
 
 - The session is the back-office's `HttpOnly` cookie; the front never sees or stores a token
   (SR-FE-01). At start-up `GET /api/auth/me` tells the front who is signed in.
 - `401` anywhere → the user is sent to `/login?expired=1`. `404 "Not Found"` on `/api/auth/me` → the
-  back-office has no auth yet: the sign-in screen says so (story B1 pending).
-- State stays local to each screen; the only shared state is the signed-in user (React context).
+  back-office has no auth yet: the sign-in screen says so (BE-03 #6 pending).
+- WebSocket closed with **4401** → same path as a 401 (FE-02 "session expiry handled without broken screens").
+- State stays local to each screen; the only shared state is the signed-in user and the live
+  connection (React contexts). Messages are merged by `id` (de-duplication + order, FE-04).
 
 ### Two API implementations, one interface
 
 | Build | How | Talks to | Use |
 |---|---|---|---|
 | **live** (default) | `docker compose up` / `npm run dev` | FastAPI through nginx `/api/` | the system under test |
-| **mock** | `VITE_API_MODE=mock` build arg (service `frontend-mock`, port 3001, `test/compose.test.yaml`) | in-browser demo data, `sessionStorage` | demo and acceptance tests until B1–B3 exist |
+| **mock** | `VITE_API_MODE=mock` build arg (service `frontend-mock`, port 3001, `test/compose.test.yaml`) | in-browser demo data: `localStorage` (shared by the tabs of one browser), session per tab in `sessionStorage`, live events through `BroadcastChannel` (delivered twice on purpose) | demo and acceptance tests until the BE issues exist |
 
 The mock is loaded by dynamic import only when `VITE_API_MODE=mock`. A live bundle contains no
 mock code and no demo password (checked on 2026-11-15 by grepping both builds — SR-FE-06). The
@@ -292,13 +321,30 @@ mock is **never** a security control: it runs in the browser and can always be b
 | Route guard, hidden Admin link, upload pre-checks, `maxLength` | screens | **UX only** — SR-FE-04; enforcement = SR-AC, SR-VAL, SR-FILE on the server |
 | Generic sign-in failure message reused from the server | `LoginScreen` | SR-AUTH-03 |
 | Registration never signs in by itself (fresh session at login) | `RegisterScreen` | SR-SESS-03 |
+| WebSocket frames parsed like API responses; unknown types ignored; 4401 → sign in | `liveRealtime.ts`, `parsers.ts` | SR-WS-03, SR-FE-03 |
+| Upload pre-checks (type allowlist by MIME **and** extension, 5 MB) with size feedback | `Composer.tsx` | **UX only** — SR-FILE-01 on the server |
 
 ### Tests
 
 `test/` at the repository root (pytest + Playwright Chromium, run in Docker, no host install):
 **smoke** (stack wired: healthz, SPA, proxy, DB greeting, baseline headers, browser boot) and
-**acceptance** (AC-L1…L4 on the live stack, AC-01…AC-13 on the mock build). Command:
-`bash test/run-tests.sh` — details in `test/README.md`.
+**acceptance**, one file per backlog issue and one test per acceptance checkbox
+(`test_fe02_ac4_…` = FE-02, 4th checkbox): `test_fe02_login.py` … `test_fe07_reports_audit.py`
+on the mock build, `test_acceptance_live.py` on the live stack. 45 tests, all passing on
+2026-11-15. Command: `bash test/run-tests.sh` — details in `test/README.md`.
+
+### Backlog coverage (GitHub issues, frontend)
+
+| Issue | Front state (mock build) | Waits for |
+|---|---|---|
+| FE-01 #3 Initialise React app | closed by Evan (scaffold); extended by B7 | — |
+| FE-02 #7 Login + protected routes | AC1–AC4 done and tested; AC5 (real backend) adapts automatically | SH-01 #4, BE-03 #6 |
+| FE-03 #10 Conversations + messaging | AC1, AC2, AC4, AC5 done and tested; AC3 done on mock | BE-05 #9 |
+| FE-04 #12 Real-time chat | AC1–AC4 done and tested on mock (two tabs, reload, reconnect catch-up, duplicates) | BE-06 #11 |
+| FE-05 #14 Attachments | AC1–AC4 done and tested on mock (types, size, classification, download link, progress) | BE-07 #13 |
+| FE-06 #16 Group + admin screens | AC1–AC5 done and tested on mock | BE-08 #15 |
+| FE-07 #18 Reporting + audit views | AC1–AC4 done and tested on mock | BE-09 #17 |
+| FE-08 #25 External service (P2) | not started | BE-10 #24 (no provider chosen) |
 
 ## 8. Sprint 1 checklist
 
@@ -317,5 +363,6 @@ mock is **never** a security control: it runs in the browser and can always be b
 
 - **Oracle:** `../04. Stories/security-requirements.md` is the oracle for every test in `../04. Stories/Ethical-Hacking-scenario.md` — each attack expects an SR to hold; a breach is a CVSS-scored finding, a pass confirms a control. This blueprint is the Q1 input (*what we build*) that those SRs govern.
 - **CAF 4.0:** `../03. Frameworks/caf-4.0-baseline.md` groups the SRs into NCSC CAF contributing outcomes (B2.a identity and access, B3.b data in transit, B4.a secure by design, A4.b secure software development, C1 logging…) with an honest self-assessment. It gives the business-impact language for Artefacts 2 and 3.
-- **Stories:** `../04. Stories/B0-back-office-scaffold-retro.md` (what the back-office is today) · `../04. Stories/B7-front-end-screens.md` (the front, contract v0.1, tests).
+- **Stories:** `../04. Stories/B0-back-office-scaffold-retro.md` (what the back-office is today) · `../04. Stories/B7-front-end-screens.md` (the front, contract v0.2, tests).
+- **Group backlog (GitHub, source of truth for sprint work):** B0 = BE-01 #2 + FE-01 #3 (closed) · B1 = BE-02 #5, BE-03 #6, BE-04 #8 · B2 = BE-05 #9, BE-06 #11, BE-07 #13 · B3 = BE-08 #15, BE-09 #17 · B7 = FE-02…FE-07 (#7, #10, #12, #14, #16, #18) · SH-01 #4 = the contract in §4 · SH-03 #20 = security smoke tests on the five scenarios (human-executed, see `Ethical-Hacking-scenario.md`).
 - **Artefacts:** this blueprint feeds Artefact 1 (Scoping Document — vision, scope, architecture, deployment evidence), Artefact 2 (Threat Model — attack surface preview → STRIDE story A1, sprint-1 deliverables), Artefact 3 (Security Assessment Report — the surfaces tested against the SRs) and Artefact 4 (Reflection — decisions recorded in section 0).

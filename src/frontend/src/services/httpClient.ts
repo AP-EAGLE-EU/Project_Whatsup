@@ -122,6 +122,59 @@ export async function request(
   }
 }
 
+const UPLOAD_TIMEOUT_MS = 60_000;
+
+function detailFromText(text: string): string | null {
+  try {
+    const data: unknown = JSON.parse(text);
+    return isRecord(data) && typeof data.detail === 'string' ? data.detail : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Multipart POST with upload progress (FE-05). fetch() cannot report upload progress,
+ * so this one call uses XMLHttpRequest with the same CSRF, timeout and error rules.
+ */
+export function uploadWithProgress(
+  path: string,
+  form: FormData,
+  onProgress?: (percent: number) => void,
+): Promise<unknown> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', path);
+    xhr.timeout = UPLOAD_TIMEOUT_MS;
+    xhr.withCredentials = false; // same-origin requests send cookies anyway
+    xhr.setRequestHeader('Accept', 'application/json');
+    const csrfToken = readCookie(CSRF_COOKIE);
+    if (csrfToken !== null) {
+      xhr.setRequestHeader(CSRF_HEADER, csrfToken);
+    }
+
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable && onProgress !== undefined) {
+        onProgress(Math.round((event.loaded / event.total) * 100));
+      }
+    };
+    xhr.onerror = () => reject(new ApiError('network'));
+    xhr.ontimeout = () => reject(new ApiError('network'));
+    xhr.onload = () => {
+      if (xhr.status < 200 || xhr.status >= 300) {
+        reject(errorForStatus(xhr.status, detailFromText(xhr.responseText)));
+        return;
+      }
+      try {
+        resolve(JSON.parse(xhr.responseText) as unknown);
+      } catch {
+        reject(new ApiError('unexpected', UNEXPECTED_RESPONSE));
+      }
+    };
+    xhr.send(form);
+  });
+}
+
 /** Runs a shape parser and turns any shape mismatch into a user-safe error. */
 export function parseOrThrow<T>(data: unknown, parse: (value: unknown) => T): T {
   try {

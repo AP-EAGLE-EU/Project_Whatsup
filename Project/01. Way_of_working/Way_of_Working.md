@@ -37,16 +37,22 @@ Status lifecycle: `to-plan → in-progress → in-review → shipped`. **Assessm
 
 ### Build phase (B) — one story per member
 
-| ID | Story                                                                                                 | Complexity | Feeds      | Owner | Depends | Status   |
-|----|-------------------------------------------------------------------------------------------------------|------------|------------|-------|---------|----------|
-| B0 | Back-office scaffold (FastAPI MVC + MySQL + Docker) — retro-documented in `04. Stories/B0-back-office-scaffold-retro.md` | 2 | Artefact 1 | Productivity-Square (merged by Evan-Balson) | — | shipped (PR #27, 2026-11-10) |
-| B1 | Skeleton & authentication — auth API, User/Session models, register/login/logout, session cookie + CSRF (API contract v0.1) | 3 | — | TBD | B0 | to-plan |
-| B2 | Channels & messaging — channels, messages, attachments, reports API (UI done in B7)                   | 3          | —          | TBD   | B1      | to-plan  |
-| B3 | Profiles, avatar upload & admin API (users/roles, audit events) (UI done in B7)                       | 2          | —          | TBD   | B1      | to-plan  |
-| B7 | Front-end screens + back-office integration, contract-first with a mock build, smoke & acceptance tests — `04. Stories/B7-front-end-screens.md` | 3 | Artefacts 1 & 3 | Ambroise | B0 | in-review |
-| B4 | Deployment — Docker, nginx, self-signed TLS, seed script, run instructions                            | 3          | Artefact 1 | TBD   | —       | to-plan  |
-| B5 | Design system & docs infrastructure — tokens/components, report skeletons, IEEE reference list        | 2          | —          | TBD   | —       | to-plan  |
-| B6 | PRD freeze, QA acceptance checklist, initial recon notes                                              | 2          | —          | TBD   | —       | to-plan  |
+Since 2026-11-15 the **group's GitHub backlog** (`jackoturner/WhatsUpTeam_Coursework` issues,
+Kanban board) is the source of truth for sprint work. Each B story lists the backlog issues it
+delivers; progress is reported on the issues themselves.
+
+| ID | Story | Group backlog (GitHub) | Complexity | Feeds | Owner | Depends | Status |
+|----|-------|------------------------|------------|-------|-------|---------|--------|
+| B0 | Back-office scaffold (FastAPI MVC + MySQL + Docker) — retro in `04. Stories/B0-back-office-scaffold-retro.md` | BE-01 #2 · FE-01 #3 (closed) | 2 | Artefact 1 | Productivity-Square / Evan-Balson | — | shipped (PR #27, 2026-11-10) |
+| — | API contract, entities, conventions (draft = Blueprint §4, contract v0.2) | SH-01 #4 | 2 | — | front + back representatives | — | draft ready, agreement pending |
+| B1 | Schema, authentication & organisation isolation API | BE-02 #5 · BE-03 #6 · BE-04 #8 | 3 | — | TBD | B0, SH-01 | to-plan |
+| B2 | Conversations, live delivery (WebSocket) & attachments API (UI done in B7) | BE-05 #9 · BE-06 #11 · BE-07 #13 | 3 | — | TBD | B1 | to-plan |
+| B3 | Group membership, admin & audit/reporting API (UI done in B7) | BE-08 #15 · BE-09 #17 | 2 | — | TBD | B1 | to-plan |
+| B7 | Front-end screens + integration, contract-first with a mock build, smoke & acceptance tests — `04. Stories/B7-front-end-screens.md` | FE-02 #7 · FE-03 #10 · FE-04 #12 · FE-05 #14 · FE-06 #16 · FE-07 #18 | 3 | Artefacts 1 & 3 | Ambroise | B0 | in-review (mock done; waits for BE issues) |
+| B4 | Deployment — Docker, nginx, self-signed TLS, seed script, run instructions | SH-05 #22 | 3 | Artefact 1 | TBD | — | to-plan |
+| B5 | Design system & docs infrastructure — tokens/components, report skeletons, IEEE reference list | — | 2 | — | TBD | — | to-plan |
+| B6 | PRD freeze, QA acceptance checklist, initial recon notes | SH-02 #19 · SH-04 #21 · SH-06 #23 | 2 | — | TBD | — | to-plan |
+| — | Optional external service | BE-10 #24 · FE-08 #25 (P2) | — | — | — | — | not started (no provider chosen) |
 
 ### Assessment phase (A) — 70% of the marks, run in pairs
 
@@ -118,6 +124,7 @@ Replaces the old ADR folder. Dated bullets:
 - **2026-11-04** — Simplified folder structure (§4 above).
 - **2026-11-10** — Back-office scaffold merged in the group repo (PR #27, commit `0e5302d`); retro-documented as story B0 on 2026-11-15.
 - **2026-11-15** — Front built **contract-first** (story B7): API contract v0.1 in the Blueprint §4, a mock build for demos and acceptance tests, no change to the group's back-office code. B1–B3 now cover the API only.
+- **2026-11-15** — The group's **GitHub backlog** becomes the source of truth for sprint work; B stories map to the backlog IDs (table §3). Contract upgraded to **v0.2** as the draft for SH-01 #4: "conversations" (direct + group) replace "channels", plus members, directory, reports and WebSocket conventions. New SR-WS group; EH-17 added; the EH table is the plan for SH-03 #20.
 - **2026-11-15** — NCSC **CAF 4.0** added as the organisational assurance lens (`03. Frameworks/caf-4.0-baseline.md`); new SR-FE group for the front — *proposal, group agreement pending*.
 - **2026-11-15** — Smoke + acceptance tests live in `/test` and run in Docker (Playwright image), because the team removed browser tooling from the front package (commit `53b3f07`).
 

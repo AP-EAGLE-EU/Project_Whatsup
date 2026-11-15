@@ -2,10 +2,10 @@
 
 | Field | Value |
 |---|---|
-| **ID** | B0 (build phase — written after the fact) |
+| **ID** | B0 (build phase — written after the fact) = group backlog **BE-01 #2** (backend + Docker) and **FE-01 #3** (React app), both closed, assigned to Evan-Balson |
 | **Built by** | GitHub user `Productivity-Square` (12 commits, 2026-10-31) · merged by `Evan-Balson` |
 | **Source** | Group repo `jackoturner/WhatsUpTeam_Coursework`, branch `balson_app_scaffold` → PR #27 → `main` at commit `0e5302d` (2026-11-10) |
-| **Local copy** | `WhatsUpTeam_Coursework-main/` (downloaded 2026-11-15, identical to `0e5302d` apart from line endings) |
+| **Local copy** | group clone `vscode/WhatsUp_Coursework` (branch `main` synced to `0e5302d` on 2026-11-15); the earlier zip snapshot `WhatsUpTeam_Coursework-main/` was committed in `b3457f8` and later removed |
 | **Status** | `shipped` (merged) — this file documents it; it changes no code |
 | **Retro written by** | Ambroise, with Claude Code (see `AI_USE.md`, 2026-11-15) |
 
@@ -82,13 +82,14 @@ components, tests, reviewed PR). B2.a, B3.b and C1 are not achieved yet.
 
 ## 4. What the scaffold means for the next stories
 
-| Story | Starts from | Must add (contract v0.1, Blueprint §4) |
-|---|---|---|
-| **B1** auth | MVC pattern, `get_db`, error handler | `User`, `Session`, `Organisation` tables; `/api/auth/register|login|logout|me`; cookie + CSRF; throttling; deny-by-default dependency; audit events |
-| **B2** channels & messaging | same | `Channel`, `ChannelMember`, `Message`, `Attachment`, `MessageReport`; `/api/channels…`, `/api/messages…`, `/api/attachments/{id}`; org scoping |
-| **B3** profiles & admin | same | `/api/profile`, avatar upload/serve, `/api/admin/users`, `/api/admin/audit-events` |
-| **B4** deployment | compose, nginx | TLS on :8443, HTTP→HTTPS, HSTS; docs disabled in `runtime`; seed script (`alice`, `bob`, `#general`) |
-| **B7** front (done) | greeting screen | all screens, API layer, mock build, `test/` suites |
+| Story | Group backlog | Starts from | Must add (contract v0.2, Blueprint §4) |
+|---|---|---|---|
+| **SH-01** contract | #4 | — | agree Blueprint §4 (draft written by B7) |
+| **B1** auth & isolation | BE-02 #5 · BE-03 #6 · BE-04 #8 | MVC pattern, `get_db`, error handler | schema + migrations; `User`, `Session`, `Organisation`; `/api/auth/register|login|logout|me`; cookie + CSRF; throttling; deny-by-default and organisation-scoping dependencies; `/api/users` directory |
+| **B2** conversations, live, files | BE-05 #9 · BE-06 #11 · BE-07 #13 | same | `Conversation`, `ConversationMember`, `Message`, `Attachment`; `/api/conversations…`, `/api/ws` (Origin check, 4401, participants only), `/api/messages/{id}/attachments`, `/api/attachments/{id}` |
+| **B3** groups, admin, audit | BE-08 #15 · BE-09 #17 | same | `/api/conversations/{id}/members`, `/api/admin/users`, `/api/admin/audit-events`, `/api/admin/reports`, `MessageReport`, audit events; profile/avatar routes (blueprint) |
+| **B4** deployment | SH-05 #22 | compose, nginx | TLS on :8443, HTTP→HTTPS, HSTS; docs disabled in `runtime`; seed script (`alice`, `bob`, `#general`); nginx `/api/ws` already added by B7 |
+| **B7** front (done on mock) | FE-02…FE-07 | greeting screen | all screens, live + mock API, WebSocket client, `test/` suites |
 
 The front (B7) already calls these routes. Its mock (`src/frontend/src/services/mock/mockApi.ts`)
 shows the expected behaviour of each one, including the error cases.
@@ -98,4 +99,4 @@ shows the expected behaviour of each one, including the error cases.
 1. Remove or gate `/api/greetings/hello` once B1 lands (it is the only public data route).
 2. Disable `/api/docs` and `/api/openapi.json` in the `runtime` target (`docs_url=None` when an env flag is off).
 3. Pin images by digest for the assessed build (SR-CONF-04).
-4. Who owns B1, B2, B3? The contract v0.1 lets the three be built in parallel.
+4. Who takes the BE issues (#5, #6, #8, #9, #11, #13, #15, #17 — all unassigned on 2026-11-15)? The contract v0.2 lets them be built in parallel.
